@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * Spec §20 — "financial terminal + modern SaaS".
+ * Neutral, institutional, analytical. No gradients. Numbers first.
+ */
+:root {
+  --canvas: #fbfbfa;
+  --surface: #ffffff;
+  --border: #e4e4e1;
+  --ink: #16160f;
+  --ink-muted: #6b6b63;
+  --accent: #1b5e8f;
+  --positive: #1a6b4a;
+  --negative: #9c3328;
+  --caution: #8a6212;
+  --font-sans: ui-sans-serif, -apple-system, "Segoe UI", "Pretendard", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --canvas: #12120f;
+    --surface: #1a1a16;
+    --border: #2e2e28;
+    --ink: #f2f2ee;
+    --ink-muted: #9d9d94;
+    --accent: #6fb3dd;
+    --positive: #5cba8d;
+    --negative: #e08376;
+    --caution: #d6ab51;
+  }
+}
+
+:root[data-theme="dark"] {
+  --canvas: #12120f;
+  --surface: #1a1a16;
+  --border: #2e2e28;
+  --ink: #f2f2ee;
+  --ink-muted: #9d9d94;
+  --accent: #6fb3dd;
+  --positive: #5cba8d;
+  --negative: #e08376;
+  --caution: #d6ab51;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+/* Financial figures must align in columns. */
+.figure {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}

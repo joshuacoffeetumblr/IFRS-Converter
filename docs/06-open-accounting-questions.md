@@ -6,7 +6,24 @@ specific implementation task.
 
 ---
 
-## Q1 — `OTHER_RELEVANT_CATEGORY` (spec §9, §2, §19) — **blocks ERD freeze**
+## Decision status
+
+| Q | Topic | Status | Decision |
+|---|---|---|---|
+| Q1 | Sixth category (`OTHER_RELEVANT_CATEGORY`) | ✅ **RESOLVED** 2026-09-19 | Redefined as `UNCLASSIFIED`, a technical non-IFRS state |
+| Q2 | Definition of "before" operating profit | ✅ **RESOLVED** 2026-09-19 | **As reported**; any unattributed difference shown explicitly in the waterfall |
+| Q3 | Is `PROFIT_BEFORE_FINANCING_AND_INCOME_TAXES` always presented? | ⛔ **OPEN** — blocks Phase 5 | — |
+| Q4 | Derivatives and hedging | ⛔ **OPEN** — blocks Phase 5 | — |
+| Q5 | Korean statement conventions (금융수익/비용 등) | ⛔ **OPEN** — blocks Phase 4/5 | — |
+| Q6 | Spec §30's "30 → 20" expectation | ⛔ **OPEN** — blocks test vector T2 | — |
+| Q7 | Scope: P&L only? | ✅ **RESOLVED** 2026-09-19 | P&L only, implied by MVP scope approval ("손익계산서만"). MPM and OCI restructuring are stated limitations. |
+
+Phases 1–4 are unblocked. Q3–Q6 must be answered before `classification_rules`
+seed data is written in Phase 5.
+
+---
+
+## Q1 — `OTHER_RELEVANT_CATEGORY` (spec §9, §2, §19) — ✅ RESOLVED
 
 Spec §9 lists six enum values and §2/§19 refer to "other relevant categories".
 IFRS 18 defines **five** categories for profit or loss: operating, investing,
@@ -21,11 +38,14 @@ appears in a finalized statement and its presence blocks finalization.
 non-operating categories collectively*, in which case no enum value is needed at
 all and §2's example section is simply "Income tax / Discontinued operations".
 
-**Needed from you:** confirm `UNCLASSIFIED`, or tell me the intended meaning.
+**DECISION (2026-09-19): `UNCLASSIFIED` confirmed.** The enum slot is retained
+with the technical meaning above. It is not an IFRS 18 category, never appears
+in a finalized statement, and blocks finalization while present. Implemented in
+`Ifrs18Category` (`04-classification-engine.md` §3).
 
 ---
 
-## Q2 — What is the "before" operating profit? — **blocks the entire impact screen**
+## Q2 — What is the "before" operating profit? — ✅ RESOLVED
 
 The headline number in spec §5 and §22 is *"Operating Profit — Current:
 ₩1,240bn"*. There are two defensible sources and they can differ materially:
@@ -46,8 +66,13 @@ question is "how does my published operating profit change?". Compute (b) as a
 cross-check and, when (a) ≠ (b), display the difference as an explicit
 "unattributed" step in the waterfall rather than absorbing it.
 
-**Needed from you:** confirm (a), and confirm that showing the unattributed
-difference openly is acceptable even though it makes some waterfalls less tidy.
+**DECISION (2026-09-19): option (a), as reported.** The headline "Before" is the
+entity's own published 영업이익 subtotal. The reconstructed figure (b) is still
+computed as a cross-check, and where (a) ≠ (b) the difference is rendered as an
+explicit `UNATTRIBUTED` step in the waterfall rather than absorbed. Consequence
+for the schema: `financial_statement_lines.subtotal_kind` must capture
+`REPORTED_OPERATING_PROFIT`, and extraction fails loudly if a statement has no
+identifiable reported operating subtotal.
 
 ---
 
@@ -130,7 +155,7 @@ asserted.
 
 ---
 
-## Q7 — Scope of restructuring: P&L only?
+## Q7 — Scope of restructuring: P&L only? — ✅ RESOLVED
 
 IFRS 18 also changes OCI presentation, requires disclosure of
 management-defined performance measures (MPMs), and sets aggregation /
@@ -143,6 +168,8 @@ restructuring and aggregation requirements are explicitly deferred and named as
 out of scope in the product's own limitations text, so users are not misled into
 thinking the output is a complete IFRS 18 compliance assessment.
 
-**Needed from you:** confirm, and in particular confirm that **MPM disclosure is
-out of MVP scope** — it is a prominent IFRS 18 requirement and its absence should
-be a stated limitation rather than an omission.
+**DECISION (2026-09-19): P&L only**, carried by the MVP scope approval
+("손익계산서만"). MPM disclosure, OCI restructuring and the aggregation /
+disaggregation requirements are out of MVP scope and must appear as **stated
+limitations in the product's own text**, alongside the §24 disclaimer — not as
+silent omissions.

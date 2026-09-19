@@ -1,0 +1,50 @@
+name: ifrs18
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ifrs18
+      POSTGRES_PASSWORD: ifrs18
+      POSTGRES_DB: ifrs18
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ifrs18 -d ifrs18"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+    environment:
+      IFRS18_ENVIRONMENT: local
+      IFRS18_DEBUG: "true"
+      IFRS18_LOG_LEVEL: DEBUG
+      IFRS18_DATABASE_URL: postgresql+asyncpg://ifrs18:ifrs18@db:5432/ifrs18
+      IFRS18_CORS_ORIGINS: http://localhost:3000
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/srv/app:ro
+      - ./backend/alembic:/srv/alembic:ro
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  web:
+    build:
+      context: ./frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:

@@ -29,7 +29,7 @@ investing, financing, tax and discontinued items. Anything not matched is
 operating *by definition of the standard*, not by inference. This is why a
 deterministic engine can cover most of a statement and the AI layer stays small.
 
-### On `OTHER_RELEVANT_CATEGORY` (spec §9) — flagged for decision
+### On `OTHER_RELEVANT_CATEGORY` (spec §9) — ✅ decided 2026-09-19
 
 Spec §9 lists `OTHER_RELEVANT_CATEGORY` as a sixth enum value, and spec §2's
 example shows an "Other / relevant categories" section. **IFRS 18 defines five
@@ -46,7 +46,7 @@ UNCLASSIFIED   — the engine could not decide and no human has yet.
 ```
 
 This preserves the extensibility §9 asks for without inventing an accounting
-category that does not exist. **Decision required from you** — see
+category that does not exist. **Approved 2026-09-19** — see
 `06-open-accounting-questions.md` Q1.
 
 ## 2. Subcategories

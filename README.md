@@ -10,11 +10,14 @@ audit trail, how and why operating profit changes.
 
 ---
 
-## Status: design phase — no application code yet
+## Status: Phase 1 — foundation
 
-Per the project specification (§26, §35), design precedes implementation.
-The repository currently contains design documents only. Implementation of
-Phase 1 begins after these are approved.
+Design was approved on 2026-09-19 and Phase 1 (repository, tooling, skeleton,
+CI) is complete. No accounting logic exists yet; that arrives in Phases 5–7.
+
+Open accounting questions **Q3–Q6** must be answered before the IFRS 18 rule set
+is seeded in Phase 5 — see
+[`docs/06-open-accounting-questions.md`](docs/06-open-accounting-questions.md).
 
 | Doc | Task | Contents |
 |---|---|---|
@@ -23,10 +26,53 @@ Phase 1 begins after these are approved.
 | [`docs/02-erd.md`](docs/02-erd.md) | 3 | Full schema, state machine, schema-level decisions |
 | [`docs/03-api-specification.md`](docs/03-api-specification.md) | 4 | REST contract, payload shapes, deviations from spec §15 |
 | [`docs/04-classification-engine.md`](docs/04-classification-engine.md) | 5 | Domain model, rule DSL, draft rule set, confidence model, test vectors |
-| [`docs/05-mvp-scope.md`](docs/05-mvp-scope.md) | 6 | **Scope for approval**, phase plan, definition of done |
-| [`docs/06-open-accounting-questions.md`](docs/06-open-accounting-questions.md) | — | **Q1–Q7: accounting uncertainties requiring your decision** |
+| [`docs/05-mvp-scope.md`](docs/05-mvp-scope.md) | 6 | Approved scope, phase plan, definition of done |
+| [`docs/06-open-accounting-questions.md`](docs/06-open-accounting-questions.md) | — | Q1, Q2, Q7 resolved; **Q3–Q6 still open** |
 
 **Start with `docs/05-mvp-scope.md` and `docs/06-open-accounting-questions.md`.**
+
+---
+
+## Running it
+
+```bash
+cp .env.example .env
+make up                 # db + api + web via Docker Compose
+```
+
+Or without Docker:
+
+```bash
+make setup              # backend venv + frontend deps
+make migrate            # apply migrations
+cd backend  && .venv/bin/uvicorn app.main:app --reload   # http://localhost:8000
+cd frontend && npm run dev                               # http://localhost:3000
+```
+
+| Target | What it does |
+|---|---|
+| `make check` | Everything CI runs: lint, types, tests |
+| `make test` | Backend test suite |
+| `make e2e` | Playwright tests (stack must be running) |
+| `make revision m="..."` | Autogenerate a migration |
+
+API docs at `http://localhost:8000/docs`.
+
+### Phase 1 verification
+
+Verified on 2026-09-19 against a live PostgreSQL 16 and both servers running:
+
+- `GET /api/health` → `200`
+- `GET /api/ready` → `200` with a database, `503 degraded` without
+- `alembic upgrade head` applies; `alembic check` reports no drift
+- The landing page renders the §24 disclaimer **fetched from the API**, not a
+  local copy
+- Backend: 11 tests pass, `ruff` clean, `mypy --strict` clean
+- Frontend: `eslint` clean, `tsc --noEmit` clean, production build succeeds,
+  3 Playwright tests pass, `npm audit` reports 0 vulnerabilities
+
+Docker image builds are exercised in CI; they could not be run locally because
+the development sandbox has no Docker daemon.
 
 ---
 
@@ -57,10 +103,10 @@ Upload → Extract (with cell-level provenance)
        → Export
 ```
 
-## Proposed stack
+## Stack
 
-Next.js · TypeScript · Tailwind · shadcn/ui · Recharts —
+Next.js 16 · TypeScript (strict) · Tailwind · Recharts —
 FastAPI · Pydantic v2 · SQLAlchemy 2.0 · Alembic · PostgreSQL 16 —
-openpyxl · pandas · pdfplumber — pytest · Playwright — Docker Compose
+openpyxl · pandas · pdfplumber *(Phase 3)* — pytest · Playwright — Docker Compose
 
 Rationale for each choice is in [`docs/01-architecture.md`](docs/01-architecture.md) §4.

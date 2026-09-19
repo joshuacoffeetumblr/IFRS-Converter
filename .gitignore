@@ -39,3 +39,12 @@ tmp/
 .DS_Store
 .idea/
 .vscode/
+
+# Next.js / Playwright artifacts
+next-env.d.ts
+frontend/.next/
+frontend/playwright-report/
+frontend/test-results/
+
+# Local database data
+pgdata/

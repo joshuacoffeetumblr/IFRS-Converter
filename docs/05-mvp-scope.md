@@ -1,6 +1,9 @@
 # Task 6 — MVP Scope (redefined)
 
-> **This is the document requiring your approval before Phase 1 begins.**
+> **Status: ✅ APPROVED 2026-09-19.** Phase 1 implementation is under way.
+>
+> Scope approved as written: XLSX first, non-financial Korean corporates,
+> single period, single currency, P&L only, PDF sequenced last.
 
 ## 1. The one-sentence MVP
 
@@ -100,7 +103,7 @@ waiting for PDF ingestion.
 
 | Phase | Content | Exit criterion |
 |---|---|---|
-| **0** | These design docs; Q1–Q7 answered | **Your approval** |
+| **0** | These design docs; Q1–Q7 answered | ✅ **approved 2026-09-19** (Q1, Q2, Q7 resolved; Q3–Q6 open, Phase 5 only) |
 | **1** | Monorepo, Docker Compose, FastAPI + Next.js skeleton, Postgres, Alembic, ruff/mypy/eslint, pytest, CI | `docker compose up` works; CI green on an empty test suite |
 | **2** | Full schema + migrations; domain money type; sign convention; repositories | Schema matches `02-erd.md`; round-trip tests pass |
 | **3a** | XLSX ingest with provenance + extraction reconciliation | A real statement extracts and its own subtotals reconcile |
@@ -113,8 +116,9 @@ waiting for PDF ingestion.
 | **8** | Excel export (+ PDF if time) | Export equals on-screen figures byte-for-byte |
 | **9** | UX refinement, empty/loading/error states, responsive | Playwright covers the full §4 flow |
 
-**Phase 0 ends with your answers to Q1–Q7.** Q1, Q2 and Q7 block schema and
-impact-screen work; Q3–Q6 block Phase 5 rule seeding but not Phases 1–4.
+**Phase 0 closed 2026-09-19.** Q1, Q2 and Q7 are resolved, so schema and
+impact-screen work is unblocked. Q3–Q6 remain open and block Phase 5 rule
+seeding only; Phases 1–4 proceed.
 
 ## 5. Definition of done for the MVP
 
@@ -135,11 +139,10 @@ A single end-to-end Playwright test executing spec §34 verbatim:
 
 If that test passes, the MVP is done.
 
-## 6. What I need from you to proceed
+## 6. Outstanding inputs needed
 
-1. **Approve or amend this scope** (spec §35 Task 7).
-2. **Answer Q1–Q7** in `06-open-accounting-questions.md`. Q1, Q2 and Q7 are the
-   blocking ones.
+1. ~~Approve or amend this scope~~ — ✅ approved 2026-09-19.
+2. **Answer Q3–Q6** in `06-open-accounting-questions.md` before Phase 5.
 3. **Confirm access to authoritative IFRS 18 material** (spec §25). I can draft
    the rule set from my understanding of the standard, but every
    `source_reference` must be verified against the IFRS Foundation's issued text
