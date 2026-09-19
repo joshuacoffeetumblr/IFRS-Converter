@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Node
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Uploaded / generated financial data — never commit client statements
+uploads/
+exports/
+tmp/
+*.xlsx
+*.xls
+*.csv
+*.pdf
+!docs/**/*.pdf
+!tests/fixtures/**
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
