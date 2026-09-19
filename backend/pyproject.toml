@@ -66,6 +66,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "ANN201", "ANN001"]
 "alembic/**" = ["ANN", "E501", "N999"]
+"scripts/**" = ["RUF001"]
 # RUF001 flags characters that look like ASCII lookalikes. These modules exist
 # precisely to parse them — full-width parentheses and colons, triangle marks,
 # en dashes and non-breaking spaces are what Korean financial statements and
@@ -78,6 +79,8 @@ ignore = [
 "tests/test_classification.py" = ["RUF001", "RUF003"]
 "tests/test_statement.py" = ["RUF001"]
 "tests/test_impact.py" = ["RUF001"]
+"tests/test_export_xlsx.py" = ["RUF001"]
+"app/adapters/export/xlsx.py" = ["RUF001"]
 "tests/test_validation.py" = ["RUF001"]
 "tests/test_rule_catalog.py" = ["RUF001", "RUF003"]
 "tests/test_rules_dsl.py" = ["RUF001"]

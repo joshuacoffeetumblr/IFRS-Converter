@@ -113,7 +113,7 @@ waiting for PDF ingestion.
 | **5** | **Rule engine, rule seed data with verified citations, company- and line-scoped `NEEDS_FACT` (Q4), AI advisor** | ✅ done 2026-09-19 — 10 cited rules, all `VERIFIED_SECONDARY`; the two with unconfirmed conditions force human review |
 | **6** | Reconstruction, subtotals, reconciliation gate | ✅ done 2026-09-19 — total invariance exact on every fixture; the gate blocks on an unclassified line, an unanswered question, or a subtotal IFRS 18.73 forbids |
 | **7** | Impact: KPIs, waterfall, drivers | ✅ done 2026-09-19 — the waterfall is built from the movement the gate checks, so it sums to the delta by construction; measures IFRS 18 introduced report no "before" rather than a false zero |
-| **8** | Excel export (+ PDF if time) | Export equals on-screen figures byte-for-byte |
+| **8** | Excel export (+ PDF if time) | ✅ done 2026-09-19 — six sheets incl. audit trail and reconciliation; a figure that would lose precision fails the export rather than shipping altered; unreconciled files are watermarked on every sheet. **PDF export not built** — Excel satisfies §34. |
 | **9** | UX refinement, empty/loading/error states, responsive | Playwright covers the full §4 flow |
 
 **Phase 0 closed 2026-09-19.** Q1, Q2 and Q7 are resolved, so schema and

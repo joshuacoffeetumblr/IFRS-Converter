@@ -10,16 +10,21 @@ audit trail, how and why operating profit changes.
 
 ---
 
-## Status: Phase 7 — impact analysis
+## Status: Phase 8 — Excel export
 
-Phases 1–7 are complete: repository and tooling, the database schema,
+Phases 1–8 are complete: repository and tooling, the database schema,
 XLSX + CSV extraction with cell-level provenance and reconciliation against the
 source's own subtotals, account normalization against a catalog of 34 canonical
 accounts and 198 synonyms, the IFRS 18 classification engine, statement reconstruction behind a
-reconciliation gate, and impact analysis.
+reconciliation gate, impact analysis, and Excel export.
 
-Export (Phase 8) and the user interface (Phase 9) remain; the API and the
-frontend screens are not built yet.
+The analytical core is complete and driven end to end by
+`app/services/pipeline.py`. What remains is the delivery surface: the REST API
+beyond health and metadata, and the frontend screens (Phase 9).
+
+```bash
+make demo   # runs the whole chain over the fixture and writes an .xlsx
+```
 
 On the synthetic fixture the full chain runs end to end:
 
@@ -99,6 +104,7 @@ cd frontend && npm run dev                               # http://localhost:3000
 | `make e2e` | Playwright tests (stack must be running) |
 | `make revision m="..."` | Autogenerate a migration |
 | `make seed` | Load the account catalog and rule set into the database |
+| `make demo` | Run the pipeline over the fixture and write an Excel export |
 
 API docs at `http://localhost:8000/docs`.
 
@@ -114,7 +120,7 @@ Verified on 2026-09-19 against a live PostgreSQL 16 and both servers running:
 - The `audit_logs` append-only trigger rejects both UPDATE and DELETE
 - The landing page renders the §24 disclaimer **fetched from the API**, not a
   local copy
-- Backend: 851 tests pass, `ruff` clean, `mypy --strict` clean
+- Backend: 879 tests pass, `ruff` clean, `mypy --strict` clean
 - Total invariance is exact and unconfigurable: reclassification cannot change
   the sum of all income and expenses
 - The waterfall is derived from the same per-line movement the gate checks, so

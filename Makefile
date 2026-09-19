@@ -61,6 +61,10 @@ e2e: ## Run Playwright end-to-end tests (requires the stack to be running)
 seed: ## Load the account catalog and IFRS 18 rule set into the database
 	cd $(BACKEND) && .venv/bin/python -m app.cli seed
 
+.PHONY: demo
+demo: ## Run the whole pipeline over the fixture and write an Excel export
+	cd $(BACKEND) && .venv/bin/python -m scripts.demo_export ../out
+
 .PHONY: fixture
 fixture: ## Write the synthetic Korean statement fixtures to ./fixtures for inspection
 	cd $(BACKEND) && .venv/bin/python -m tests.fixtures.dump ../fixtures
