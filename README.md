@@ -10,11 +10,15 @@ audit trail, how and why operating profit changes.
 
 ---
 
-## Status: Phase 3a — XLSX extraction
+## Status: Phase 3 — file import complete (XLSX + CSV)
 
-Phases 1–3a are complete: repository and tooling, the database schema
-(17 tables, 65 CHECK constraints), and XLSX extraction with cell-level
+Phases 1–3b are complete: repository and tooling, the database schema
+(17 tables, 65 CHECK constraints), and XLSX + CSV extraction with cell-level
 provenance and reconciliation against the source's own subtotals.
+
+Both adapters share one extraction pipeline (`app/adapters/ingest/grid.py`),
+so the format is transport only — a test asserts the two produce identical
+figures from the same statement. PDF (Phase 3c) plugs into the same grid.
 
 No IFRS 18 classification exists yet; that is Phase 5.
 
@@ -81,11 +85,13 @@ Verified on 2026-09-19 against a live PostgreSQL 16 and both servers running:
 - The `audit_logs` append-only trigger rejects both UPDATE and DELETE
 - The landing page renders the §24 disclaimer **fetched from the API**, not a
   local copy
-- Backend: 171 tests pass, `ruff` clean, `mypy --strict` clean
+- Backend: 200 tests pass, `ruff` clean, `mypy --strict` clean
 - Every enum-backed CHECK constraint is compared against its Python enum,
   because Alembic autogenerate does not diff CheckConstraints
 - All three Korean sign conventions extract to identical figures, and an
   unsigned statement is resolved only because its own subtotals then reconcile
+- CSV decodes UTF-8, UTF-8-with-BOM, CP949 and EUC-KR, and detects `,` `;`
+  tab and `|` delimiters
 - Frontend: `eslint` clean, `tsc --noEmit` clean, production build succeeds,
   3 Playwright tests pass, `npm audit` reports 0 vulnerabilities
 

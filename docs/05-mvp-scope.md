@@ -106,8 +106,8 @@ waiting for PDF ingestion.
 | **0** | These design docs; Q1–Q7 answered | ✅ **approved 2026-09-19** (Q1, Q2, Q7 resolved; Q3–Q6 open, Phase 5 only) |
 | **1** | Monorepo, Docker Compose, FastAPI + Next.js skeleton, Postgres, Alembic, ruff/mypy/eslint, pytest, CI | `docker compose up` works; CI green on an empty test suite |
 | **2** | Full schema + migrations; domain money type; sign convention; repositories | Schema matches `02-erd.md`; round-trip tests pass |
-| **3a** | XLSX ingest with provenance + extraction reconciliation | A real statement extracts and its own subtotals reconcile |
-| **3b** | CSV ingest | |
+| **3a** | XLSX ingest with provenance + extraction reconciliation | ✅ done 2026-09-19 against synthetic fixtures; a **real** statement is still outstanding |
+| **3b** | CSV ingest | ✅ done 2026-09-19 — shares one pipeline with XLSX; Korean encodings (CP949/EUC-KR/BOM) handled |
 | **3c** | PDF ingest (text-based only) | *Cuttable without affecting §34* |
 | **4** | Normalization dictionary (Korean + English), synonyms, fuzzy matching, **note-based decomposition of aggregate captions (Q5)** | ≥90% of lines on the fixture statement normalize without AI; an aggregate 영업외수익 can be decomposed into classified child lines that sum back to the parent |
 | **5** | **Rule engine, rule seed data with verified citations, company- and line-scoped `NEEDS_FACT` (Q4), AI advisor** | **T1–T12 pass**; an accountant can read `GET /api/rules` and agree |

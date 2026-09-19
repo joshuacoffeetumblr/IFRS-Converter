@@ -8,13 +8,12 @@ from pathlib import Path
 import pytest
 from openpyxl import Workbook
 
-from app.adapters.ingest.xlsx import (
-    ReadOptions,
+from app.adapters.ingest.grid import (
+    ExtractOptions,
     StatementNotFoundError,
     classify_subtotal,
-    detect_scale,
-    read_income_statement,
 )
+from app.adapters.ingest.xlsx import read_income_statement
 from app.domain.enums import SignNormalization, SubtotalKind
 from app.domain.extraction import infer_signs_from_subtotals, reconcile_extraction
 from tests.fixtures.korean_income_statement import (
@@ -92,7 +91,7 @@ def test_missing_statement_raises(tmp_path: Path) -> None:
 
 def test_unknown_sheet_hint_raises(workbook_path: Path) -> None:
     with pytest.raises(StatementNotFoundError, match="not in the workbook"):
-        read_income_statement(workbook_path, options=ReadOptions(sheet="없는시트"))
+        read_income_statement(workbook_path, options=ExtractOptions(sheet="없는시트"))
 
 
 # ---------------------------------------------------------------------------
@@ -145,7 +144,7 @@ def test_indentation_becomes_depth(workbook_path: Path) -> None:
 def test_comparative_column_is_read_separately(workbook_path: Path) -> None:
     """Test vector T12: periods must not be mixed."""
     current = read_income_statement(workbook_path)
-    prior = read_income_statement(workbook_path, options=ReadOptions(period_index=1))
+    prior = read_income_statement(workbook_path, options=ExtractOptions(period_index=1))
 
     current_revenue = next(ln for ln in current.lines if ln.raw_label == "매출액")
     prior_revenue = next(ln for ln in prior.lines if ln.raw_label == "매출액")
@@ -157,7 +156,7 @@ def test_comparative_column_is_read_separately(workbook_path: Path) -> None:
 
 def test_requesting_a_missing_period_raises(workbook_path: Path) -> None:
     with pytest.raises(StatementNotFoundError, match="period_index"):
-        read_income_statement(workbook_path, options=ReadOptions(period_index=9))
+        read_income_statement(workbook_path, options=ExtractOptions(period_index=9))
 
 
 # ---------------------------------------------------------------------------
@@ -214,15 +213,13 @@ def test_inferred_lines_record_how_their_sign_was_determined(tmp_path: Path) -> 
     assert revenue.sign_normalization is SignNormalization.AS_IS
 
 
-def test_detect_scale_defaults_to_won(tmp_path: Path) -> None:
-    workbook = Workbook()
-    sheet = workbook.active
-    assert sheet is not None
-    sheet["A1"] = "손익계산서"
-    path = tmp_path / "noscale.xlsx"
-    workbook.save(path)
-
+def test_scale_defaults_to_won_when_no_unit_is_printed(tmp_path: Path) -> None:
+    path = build_workbook(tmp_path / "noscale.xlsx", style=SignStyle.PARENTHESES)
     from openpyxl import load_workbook
 
-    loaded = load_workbook(path)
-    assert detect_scale(loaded["Sheet"]) == 0
+    workbook = load_workbook(path)
+    sheet = workbook["손익계산서"]
+    sheet["A3"] = ""  # remove "(단위: 백만원)"
+    workbook.save(path)
+
+    assert read_income_statement(path).scale == 0

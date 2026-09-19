@@ -146,5 +146,54 @@ def build_workbook(
     return path
 
 
+def build_csv(
+    path: Path,
+    *,
+    style: SignStyle = SignStyle.PARENTHESES,
+    encoding: str = "utf-8",
+    delimiter: str = ",",
+    include_comparative: bool = True,
+) -> Path:
+    """Write the same statement as a delimited text file.
+
+    ``encoding`` matters: Korean exports are commonly CP949, and Excel writes
+    UTF-8 with a BOM, so the reader has to cope with both.
+    """
+    lines: list[str] = [
+        "연결 포괄손익계산서",
+        "제55기 2025.01.01 부터 2025.12.31 까지",
+        "(단위: 백만원)",
+        "",
+    ]
+
+    header = ["과목", "주석", "제55기"]
+    if include_comparative:
+        header.append("제54기")
+    lines.append(delimiter.join(header))
+
+    for row in STATEMENT_ROWS:
+        rendered = _render(row.amount, style)
+        cells = [
+            "  " * row.depth + row.label,
+            row.note or "",
+            _quote(rendered, delimiter),
+        ]
+        if include_comparative:
+            prior = (row.amount * Decimal("0.9")).quantize(Decimal("1"))
+            cells.append(_quote(_render(prior, style), delimiter))
+        lines.append(delimiter.join(cells))
+
+    path.write_bytes(("\n".join(lines) + "\n").encode(encoding))
+    return path
+
+
+def _quote(value: str | Decimal, delimiter: str) -> str:
+    text = f"{value:,}" if isinstance(value, Decimal) else str(value)
+    if delimiter in text or '"' in text:
+        escaped = text.replace('"', '""')
+        return f'"{escaped}"'
+    return text
+
+
 def expected_amounts() -> dict[str, Decimal]:
     return {row.label: row.amount for row in STATEMENT_ROWS}
