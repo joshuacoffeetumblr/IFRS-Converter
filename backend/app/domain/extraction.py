@@ -13,7 +13,7 @@ the only honest outcome.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field, fields, replace
 from decimal import Decimal
 
 from app.domain.enums import DecompositionStatus, SignNormalization, SubtotalKind
@@ -35,7 +35,16 @@ class SourceLocator:
     page: int | None = None
 
     def as_dict(self) -> dict[str, object]:
-        return {k: v for k, v in self.__dict__.items() if v is not None}
+        """The locator as JSON, omitting what does not apply to the format.
+
+        Built from the dataclass fields rather than ``__dict__``: this class is
+        ``slots=True`` and so has no instance dictionary at all.
+        """
+        return {
+            name: value
+            for name, value in ((f.name, getattr(self, f.name)) for f in fields(self))
+            if value is not None
+        }
 
 
 @dataclass(frozen=True, slots=True)

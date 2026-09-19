@@ -21,10 +21,12 @@ reconciliation gate, impact analysis, and Excel export.
 The analytical core is complete and driven end to end by
 `app/services/pipeline.py`.
 
-The REST API has begun: authentication, projects, and the RFC 9457 error
-contract are in place. The remaining endpoints (upload, extract, classify,
-review, finalize, statement, impact, export) and the frontend screens are the
-next work — see
+The REST API is being built on top of it: authentication, projects, and the
+RFC 9457 error contract, then file upload, extraction and line correction —
+uploads are sniffed rather than trusted, deduplicated by SHA-256, and every
+extracted line reaches the client with its source cell and the reconciliation
+that verified it. The remaining endpoints (classify, review, finalize,
+statement, impact, export) and the frontend screens are the next work — see
 [`docs/03-api-specification.md`](docs/03-api-specification.md) for what is
 built and what is not.
 
@@ -140,6 +142,11 @@ Verified on 2026-09-19 against a live PostgreSQL 16 and both servers running:
   unsigned statement is resolved only because its own subtotals then reconcile
 - CSV decodes UTF-8, UTF-8-with-BOM, CP949 and EUC-KR, and detects `,` `;`
   tab and `|` delimiters
+- An upload's format is decided by its leading bytes, its size is enforced
+  mid-stream, a workbook that expands like a zip bomb is refused, and a
+  rejected upload leaves nothing on disk
+- A failed extraction is recorded rather than rolled back, so a project whose
+  statement could not be read never looks untouched
 - Frontend: `eslint` clean, `tsc --noEmit` clean, production build succeeds,
   3 Playwright tests pass, `npm audit` reports 0 vulnerabilities
 

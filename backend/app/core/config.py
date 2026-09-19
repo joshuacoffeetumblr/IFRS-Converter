@@ -12,6 +12,7 @@ import os
 import secrets
 from decimal import Decimal
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, PostgresDsn, field_validator
@@ -71,6 +72,9 @@ class UploadSettings(BaseSettings):
     )
     #: Uploaded statements are deleted this many days after upload (spec §32).
     retention_days: int = 30
+    #: Where uploaded files are written. A local directory for now; the
+    #: interface is narrow enough that object storage slots in behind it.
+    directory: Path = Path("var/uploads")
 
 
 class AuthSettings(BaseSettings):

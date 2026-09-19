@@ -5,12 +5,12 @@
 > contract those models must produce.
 >
 > **Built:** `/health`, `/ready`, `/meta/disclaimer`, `/auth/register`,
-> `/auth/login`, `/auth/me`, and the `/projects` collection. The RFC 9457
-> error contract, bearer authentication and ownership isolation are in place.
+> `/auth/login`, `/auth/me`, the `/projects` collection, and upload, extract,
+> statements, lines and line correction. The RFC 9457 error contract, bearer
+> authentication and ownership isolation are in place.
 >
-> **Not built yet:** upload, extract, lines, classify, classifications,
-> questions, business-activities, finalize, statement, impact, export, rules,
-> accounts, audit-logs, jobs.
+> **Not built yet:** classify, classifications, questions, business-activities,
+> finalize, statement, impact, export, rules, accounts, audit-logs, jobs.
 
 ## 1. Conventions
 
@@ -77,52 +77,131 @@ round-trips:
 ### Upload and extraction
 
 #### `POST /api/projects/{project_id}/upload`
-`multipart/form-data`, field `file`. Enforced before anything else:
-allow-list by sniffed content type (`xlsx`, `xls`, `csv`, `pdf`), size limit from
-config, SHA-256 computed, malware scan hook.
+`multipart/form-data`, field `file`. Enforced while the stream is read, before
+anything is recorded:
+
+- The format is **sniffed from the leading bytes**, never taken from the
+  client's `Content-Type` or filename; the allow-list is `xlsx`, `xls`, `csv`,
+  `pdf` (CSV alone is identified by extension, since it has no magic number).
+- The size limit is applied mid-stream, so an oversize upload is abandoned
+  rather than measured once it is already in memory.
+- A workbook's uncompressed size and compression ratio are checked, because a
+  few hundred kilobytes of XLSX can expand to gigabytes.
+- SHA-256 is computed while writing. **An identical file already attached to
+  the project returns the existing record** rather than creating a second one a
+  later extraction would have to choose between.
+- The storage key is generated, never derived from the client's filename, which
+  is kept for display only. Its extension comes from the sniffed format.
+- A rejected upload leaves nothing on disk.
 
 → `201`
 ```json
-{ "id": "…", "original_filename": "fs.xlsx", "mime_type": "…",
+{ "id": "…", "original_filename": "손익계산서.xlsx", "mime_type": "…",
   "size_bytes": 184320, "sha256": "…",
-  "scan_status": "CLEAN", "parse_status": "PENDING" }
+  "scan_status": "SKIPPED", "parse_status": "PENDING",
+  "created_at": "2026-09-19T12:00:00Z" }
 ```
-Rejections: `413` size, `415` type, `422` unreadable, `409` infected.
+
+`scan_status` is `SKIPPED`, not `CLEAN`: no malware scanner is wired up yet, and
+`CLEAN` would be a claim the system cannot support. The scan hook stays in the
+model (ERD §2) for when one is.
+
+Rejections are `422` problem documents — one status with a machine-readable
+`type`, rather than a status per cause: `unsupported-media-type`,
+`file-too-large`, `empty-file`, `corrupt-file`, `archive-too-large`. A project
+belonging to another user is `404`.
 
 #### `POST /api/projects/{project_id}/extract`
 ```json
-{ "uploaded_file_id": "…",
-  "hints": { "sheet": "손익계산서", "header_row": 4, "amount_columns": ["D"] } }
+{ "uploaded_file_id": "…", "sheet": "손익계산서", "header_row": 5,
+  "label_column": 1, "amount_column": 3, "note_column": 2, "period_index": 0 }
 ```
-→ `202` `{ "job": { "id": "…", "status": "RUNNING" } }`
+Every field is optional and every one is auto-detected; they exist to override a
+misdetection. `period_index` selects the column — `0` current, `1` comparative.
+Omitting `uploaded_file_id` uses the project's most recent upload.
 
-On completion the project reaches `EXTRACTED` and exposes:
+Extraction runs **synchronously** and returns `200`. The `202`/job shape in the
+original draft is deferred with the rest of the job machinery: a statement of
+the size this product handles is read well inside a request timeout, and a
+synchronous result keeps the reconciliation report attached to the call that
+produced it.
+
+```json
+{ "statement": { "id": "…", "statement_type": "INCOME_STATEMENT",
+                 "is_comparative": false, "currency": "KRW", "scale": 6,
+                 "period_start": "2025-01-01", "period_end": "2025-12-31" },
+  "line_count": 13,
+  "report": { "passed": true, "blockers": [], "signs_inferred": false,
+              "checks": [ … ] } }
+```
+
+Re-extracting **replaces** the project's previous statements and the
+classifications attached to them. Leaving the old lines behind would double
+count them, and a classification decided against a figure that is no longer on
+screen is not a decision about this statement.
+
+`signs_inferred` reports that the source printed every figure unsigned and the
+signs were derived from the statement's own subtotals — accepted only when
+those subtotals then reconcile (spec §17).
+
+Failures are `422`: `no-upload`, `statement-not-found`,
+`unsupported-for-extraction` (PDF ingest is out of MVP scope — the file is
+stored, and the endpoint says so rather than half-reading it), `file-missing`.
+A failed extraction is **recorded**: the project reaches `EXTRACTION_FAILED` and
+the upload carries `parse_status: "FAILED"` with `parse_error`.
 
 #### `GET /api/projects/{project_id}/statements`
+The project's statements, oldest first. Empty before extraction.
+
 #### `GET /api/projects/{project_id}/lines`
 ```json
 { "items": [
   { "id": "…", "ordinal": 12, "depth": 1,
     "raw_label": "이자수익", "raw_value": "3,000",
-    "amount": "3000.000000", "is_subtotal": false,
-    "normalized_account": { "code": "INTEREST_INCOME", "label_ko": "이자수익" },
-    "normalization_method": "SYNONYM", "normalization_score": "1.0000",
-    "current_category": "OTHER_INCOME",
-    "source_locator": { "sheet": "손익계산서", "row": 17, "column": "D", "cell": "D17" } } ],
-  "extraction_checks": [
-    { "check": "GROSS_PROFIT", "reported": "30000.000000",
-      "computed": "30000.000000", "delta": "0.000000", "passed": true },
-    { "check": "PROFIT_BEFORE_TAX", "reported": "12000.000000",
-      "computed": "12000.000000", "delta": "0.000000", "passed": true } ] }
+    "amount": "3000.000000",
+    "sign_normalization": "AS_IS",
+    "is_subtotal": false, "subtotal_kind": null,
+    "decomposition_status": "NOT_REQUIRED", "parent_line_id": null,
+    "normalized_account_code": "INTEREST_INCOME",
+    "note_references": ["주석 25"],
+    "source_locator": { "source_file": "…", "sheet": "손익계산서",
+                        "row": 17, "column": "D", "cell": "D17" } } ],
+  "report": {
+    "passed": true, "blockers": [], "signs_inferred": false,
+    "checks": [
+      { "check": "GROSS_PROFIT", "reported": "300000.000000",
+        "computed": "300000.000000", "delta": "0.000000",
+        "tolerance": "0.000000", "passed": true } ] } }
 ```
-`extraction_checks` implements spec §17: the extracted detail lines are summed
-and compared against the subtotals printed in the source, *before* any IFRS 18
-work begins. Extraction that does not reproduce the source's own subtotals is
-reported as failed rather than passed downstream.
+The `report` implements spec §17: the extracted detail lines are summed and
+compared against the subtotals printed in the source, *before* any IFRS 18 work
+begins. Extraction that does not reproduce the source's own subtotals is
+reported as failed rather than passed downstream. `blockers` carries the cases
+where nothing could be compared at all — reporting `passed` for a statement
+with no printed subtotals would be a lie.
 
-#### `PATCH /api/lines/{line_id}`
-Manual correction of extraction (amount, label, `is_subtotal`,
-normalized account). Writes an audit log entry; invalidates classifications.
+Every line carries its source cell (spec §18): a figure on screen can always
+be traced back to the document.
+
+#### `PATCH /api/projects/{project_id}/lines/{line_id}`
+Manual correction of extraction: `raw_label`, `amount`, `is_subtotal`,
+`subtotal_kind`, `normalized_account_code`. The route is project-scoped, so
+ownership is enforced by the same repository query as everything else, and
+another user's line is `404`.
+
+- The corrected line is returned **as stored**, at the column's scale, so a
+  client that sends `"12500"` and reads back `"12500.000000"` is not looking at
+  a change it did not make.
+- An audit entry records the line's full state before and after (spec §8).
+- The project returns to `EXTRACTED`: anything derived from the old figure is no
+  longer a decision about this statement.
+- `normalized_account_code` is resolved against the seeded dictionary. An
+  unrecognised code is `422 unknown-account` rather than stored; `null` clears
+  the mapping; a manual mapping is recorded as `normalization_method: "MANUAL"`.
+- A subtotal is a reconciliation target, never a classifiable fact: attaching an
+  account to one is `422 subtotal-has-no-account`, and marking a mapped line as
+  a subtotal clears its account.
+- A finalized project refuses corrections with `409 project-finalized`.
 
 ### Business activities and questions
 

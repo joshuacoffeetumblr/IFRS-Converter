@@ -16,7 +16,7 @@ from __future__ import annotations
 import datetime as dt
 import uuid
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     ARRAY,
@@ -38,6 +38,9 @@ from app.domain.enums import (
     StatementType,
     SubtotalKind,
 )
+
+if TYPE_CHECKING:  # pragma: no cover - import cycle only matters to type checkers
+    from app.models.account import NormalizedAccount
 
 
 class FinancialStatement(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -143,6 +146,10 @@ class FinancialStatementLine(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     normalization_method: Mapped[EnumText | None]
     normalization_score: Mapped[Ratio | None]
+    #: Eagerly loaded. A response reports the account by its code, and a lazy
+    #: load on attribute access inside an async request raises rather than
+    #: quietly emitting a query.
+    normalized_account: Mapped[NormalizedAccount | None] = relationship(lazy="selectin")
 
     #: The item's presentation bucket as reported, e.g. ``영업외수익``. Used to
     #: compute the operating-profit bridge, not to decide IFRS 18 category.

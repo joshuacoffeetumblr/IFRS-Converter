@@ -70,6 +70,8 @@ ignore = [
 # fixtures and the OAuth token type, not secrets.
 "tests/test_api_auth.py" = ["S101", "S105", "S106", "ANN201", "ANN001"]
 "tests/test_api_projects.py" = ["S101", "S105", "S106", "ANN201", "ANN001"]
+"tests/test_api_uploads.py" = ["S101", "S105", "S106", "ANN201", "ANN001", "RUF001"]
+"tests/test_upload_security.py" = ["S101", "S105", "S106", "ANN201", "ANN001", "RUF001"]
 "alembic/**" = ["ANN", "E501", "N999"]
 "scripts/**" = ["RUF001"]
 # RUF001 flags characters that look like ASCII lookalikes. These modules exist
