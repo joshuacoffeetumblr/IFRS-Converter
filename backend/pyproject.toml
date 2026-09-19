@@ -14,6 +14,7 @@ dependencies = [
     "alembic>=1.14",
     "structlog>=24.4",
     "python-multipart>=0.0.17",
+    "openpyxl>=3.1.5",
 ]
 
 [project.optional-dependencies]
@@ -24,6 +25,7 @@ dev = [
     "httpx>=0.28",
     "ruff>=0.8",
     "mypy>=1.13",
+    "types-openpyxl>=3.1",
 ]
 
 [build-system]
@@ -61,6 +63,16 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "ANN201", "ANN001"]
 "alembic/**" = ["ANN", "E501", "N999"]
+# RUF001 flags characters that look like ASCII lookalikes. These modules exist
+# precisely to parse them — full-width parentheses and colons, triangle marks,
+# en dashes and non-breaking spaces are what Korean financial statements and
+# Excel exports actually contain. Escaping them does not work either, because
+# `ruff format` decodes \uXXXX escapes back to literal characters.
+"app/domain/money.py" = ["RUF001"]
+"app/adapters/ingest/xlsx.py" = ["RUF001"]
+"tests/test_money.py" = ["RUF001"]
+"tests/test_xlsx_ingest.py" = ["RUF001"]
+"tests/fixtures/**" = ["RUF001", "S101", "ANN201"]
 
 # Architecture §5 (no binary floats in the accounting core) is enforced by an AST
 # check in tests/test_no_float_in_domain.py, not by ruff: ruff's banned-api only

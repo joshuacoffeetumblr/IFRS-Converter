@@ -439,6 +439,19 @@ Rules:
 
 ## 4. Schema-level decisions worth flagging
 
+0. **Alembic does not diff CheckConstraints — corrected 2026-09-19.** Phase 2
+   claimed that adding an enum member and running autogenerate would produce
+   the migration, and that `alembic check` would catch a forgotten one. **That
+   was wrong.** Alembic's autogenerate ignores `CheckConstraint`s entirely, so
+   an enum change produces no migration and reports no drift. This was found
+   in Phase 3 while adding `SignNormalization.TRIANGLE_NEGATED`: the database
+   silently kept rejecting the new value.
+
+   The safeguard is now `tests/test_enum_constraints.py`, which reads every
+   generated constraint out of PostgreSQL and compares it to the Python enum,
+   naming exactly which values are missing or stale. Migrations for enum
+   changes are written **by hand**.
+
 1. **`text` + `CHECK` instead of PostgreSQL `ENUM`.** Spec §9 requires the
    classification taxonomy to be extensible. Altering a PG enum is awkward inside
    a transaction and painful to roll back; a `CHECK` constraint changes with a

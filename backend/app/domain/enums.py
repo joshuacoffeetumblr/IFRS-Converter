@@ -295,10 +295,18 @@ class SignNormalization(StrEnum):
     transformation keeps it auditable.
     """
 
+    #: Printed with its own sign; used as read.
     AS_IS = "AS_IS"
     NEGATED = "NEGATED"
+    #: ``(70,000)`` — the most common export convention.
     PARENTHESES_NEGATED = "PARENTHESES_NEGATED"
+    #: ``△70,000`` / ``▲70,000`` — a Korean statement convention for negatives.
+    TRIANGLE_NEGATED = "TRIANGLE_NEGATED"
     EXPENSE_COLUMN_NEGATED = "EXPENSE_COLUMN_NEGATED"
+    #: The statement printed every figure unsigned, and the sign was derived by
+    #: testing one structural hypothesis against the statement's own subtotals.
+    #: Only ever applied when that test *passes*, never on assumption.
+    INFERRED_FROM_SUBTOTAL = "INFERRED_FROM_SUBTOTAL"
 
 
 class DecompositionStatus(StrEnum):

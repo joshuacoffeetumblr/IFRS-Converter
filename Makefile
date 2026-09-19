@@ -57,5 +57,9 @@ test: ## Run the backend test suite
 e2e: ## Run Playwright end-to-end tests (requires the stack to be running)
 	cd $(FRONTEND) && npx playwright test
 
+.PHONY: fixture
+fixture: ## Write the synthetic Korean statement fixtures to ./fixtures for inspection
+	cd $(BACKEND) && .venv/bin/python -m tests.fixtures.dump ../fixtures
+
 .PHONY: check
 check: lint typecheck test ## Everything CI runs, locally

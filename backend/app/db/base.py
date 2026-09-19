@@ -74,14 +74,25 @@ def enum_check(
     ``alembic revision --autogenerate`` produces the migration, and CI's
     ``alembic check`` fails if someone forgets.
 
-    Members are sorted so the emitted SQL is stable and autogenerate does not
-    produce spurious diffs when an enum is reordered.
+    Members are sorted so the emitted SQL is stable and a reordered enum does not
+    produce a spurious diff.
+
+    **Alembic autogenerate does not diff CheckConstraints.** Adding an enum
+    member therefore does *not* produce a migration automatically, and
+    ``alembic check`` stays silent. The enum class is recorded on the
+    constraint's ``info`` so ``tests/test_enum_constraints.py`` can compare every
+    constraint against the live database and fail when a migration is missing.
+    That test is the safeguard; autogenerate is not.
     """
     allowed = ", ".join(f"'{member.value}'" for member in sorted(enum_cls, key=lambda m: m.value))
     predicate = f"{column} IN ({allowed})"
     if nullable:
         predicate = f"{column} IS NULL OR {predicate}"
-    return CheckConstraint(predicate, name=f"{column}_valid")
+    constraint = CheckConstraint(predicate, name=f"{column}_valid")
+    constraint.info["enum_cls"] = enum_cls
+    constraint.info["enum_column"] = column
+    constraint.info["enum_nullable"] = nullable
+    return constraint
 
 
 #: Enum-backed columns are stored as text (ERD §4.1). ``String`` rather than

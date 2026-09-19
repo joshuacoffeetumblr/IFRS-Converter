@@ -10,11 +10,18 @@ audit trail, how and why operating profit changes.
 
 ---
 
-## Status: Phase 2 — data model complete
+## Status: Phase 3a — XLSX extraction
 
-Phases 1 and 2 are complete: repository and tooling, then the full database
-schema (17 tables, 65 CHECK constraints, reversible migration). No accounting
-logic exists yet; that arrives in Phases 5–7.
+Phases 1–3a are complete: repository and tooling, the database schema
+(17 tables, 65 CHECK constraints), and XLSX extraction with cell-level
+provenance and reconciliation against the source's own subtotals.
+
+No IFRS 18 classification exists yet; that is Phase 5.
+
+> **Test fixtures are synthetic.** They imitate the shape of a K-IFRS
+> 손익계산서 but are not drawn from a real filing, so they validate the parser,
+> not the account dictionary or the rule set. Run `make fixture` to write them
+> out and inspect them.
 
 IFRS 18 citations were verified on 2026-09-19 against IFRS Foundation and Big 4
 sources — see
@@ -74,8 +81,11 @@ Verified on 2026-09-19 against a live PostgreSQL 16 and both servers running:
 - The `audit_logs` append-only trigger rejects both UPDATE and DELETE
 - The landing page renders the §24 disclaimer **fetched from the API**, not a
   local copy
-- Backend: 48 tests pass (21 pure + 27 against PostgreSQL), `ruff` clean,
-  `mypy --strict` clean
+- Backend: 171 tests pass, `ruff` clean, `mypy --strict` clean
+- Every enum-backed CHECK constraint is compared against its Python enum,
+  because Alembic autogenerate does not diff CheckConstraints
+- All three Korean sign conventions extract to identical figures, and an
+  unsigned statement is resolved only because its own subtotals then reconcile
 - Frontend: `eslint` clean, `tsc --noEmit` clean, production build succeeds,
   3 Playwright tests pass, `npm audit` reports 0 vulnerabilities
 
