@@ -15,9 +15,11 @@ audit trail, how and why operating profit changes.
 Design was approved on 2026-09-19 and Phase 1 (repository, tooling, skeleton,
 CI) is complete. No accounting logic exists yet; that arrives in Phases 5–7.
 
-Open accounting questions **Q3–Q6** must be answered before the IFRS 18 rule set
-is seeded in Phase 5 — see
-[`docs/06-open-accounting-questions.md`](docs/06-open-accounting-questions.md).
+IFRS 18 citations were verified on 2026-09-19 against IFRS Foundation and Big 4
+sources — see
+[`docs/07-ifrs18-source-verification.md`](docs/07-ifrs18-source-verification.md).
+A handful of handling decisions remain before the rule set is seeded in Phase 5;
+see [`docs/06-open-accounting-questions.md`](docs/06-open-accounting-questions.md).
 
 | Doc | Task | Contents |
 |---|---|---|
@@ -27,7 +29,8 @@ is seeded in Phase 5 — see
 | [`docs/03-api-specification.md`](docs/03-api-specification.md) | 4 | REST contract, payload shapes, deviations from spec §15 |
 | [`docs/04-classification-engine.md`](docs/04-classification-engine.md) | 5 | Domain model, rule DSL, draft rule set, confidence model, test vectors |
 | [`docs/05-mvp-scope.md`](docs/05-mvp-scope.md) | 6 | Approved scope, phase plan, definition of done |
-| [`docs/06-open-accounting-questions.md`](docs/06-open-accounting-questions.md) | — | Q1, Q2, Q7 resolved; **Q3–Q6 still open** |
+| [`docs/06-open-accounting-questions.md`](docs/06-open-accounting-questions.md) | — | Q1, Q2, Q7 resolved; Q3–Q5 researched; **Q6 open** |
+| [`docs/07-ifrs18-source-verification.md`](docs/07-ifrs18-source-verification.md) | — | Verified IFRS 18 citations (B65, B72, 73, 24, B30) and the corrected rule set |
 
 **Start with `docs/05-mvp-scope.md` and `docs/06-open-accounting-questions.md`.**
 

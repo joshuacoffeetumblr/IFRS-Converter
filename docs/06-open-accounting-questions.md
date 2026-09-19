@@ -12,14 +12,15 @@ specific implementation task.
 |---|---|---|---|
 | Q1 | Sixth category (`OTHER_RELEVANT_CATEGORY`) | ✅ **RESOLVED** 2026-09-19 | Redefined as `UNCLASSIFIED`, a technical non-IFRS state |
 | Q2 | Definition of "before" operating profit | ✅ **RESOLVED** 2026-09-19 | **As reported**; any unattributed difference shown explicitly in the waterfall |
-| Q3 | Is `PROFIT_BEFORE_FINANCING_AND_INCOME_TAXES` always presented? | ⛔ **OPEN** — blocks Phase 5 | — |
-| Q4 | Derivatives and hedging | ⛔ **OPEN** — blocks Phase 5 | — |
-| Q5 | Korean statement conventions (금융수익/비용 등) | ⛔ **OPEN** — blocks Phase 4/5 | — |
-| Q6 | Spec §30's "30 → 20" expectation | ⛔ **OPEN** — blocks test vector T2 | — |
+| Q3 | Is `PROFIT_BEFORE_FINANCING_AND_INCOME_TAXES` always presented? | 🔬 researched | **IFRS 18.73** — a *prohibition*, narrowly scoped; handling decision open |
+| Q4 | Derivatives and hedging | 🔬 researched | **IFRS 18 B72** — rule exists; `NEEDS_FACT` vs blanket review open |
+| Q5 | Korean statement conventions (금융수익/비용 등) | 🔬 partly researched | 지분법손익 resolved (**always investing**); aggregate-caption handling open |
+| Q6 | Spec §30's "30 → 20" expectation | ⛔ **OPEN** — needs your intent | — |
 | Q7 | Scope: P&L only? | ✅ **RESOLVED** 2026-09-19 | P&L only, implied by MVP scope approval ("손익계산서만"). MPM and OCI restructuring are stated limitations. |
 
-Phases 1–4 are unblocked. Q3–Q6 must be answered before `classification_rules`
-seed data is written in Phase 5.
+Phases 1–4 are unblocked. Q3–Q6 must be settled before `classification_rules`
+seed data is written in Phase 5. Paragraph-level citations are recorded in
+`07-ifrs18-source-verification.md`.
 
 ---
 
@@ -76,7 +77,7 @@ identifiable reported operating subtotal.
 
 ---
 
-## Q3 — Is `PROFIT_BEFORE_FINANCING_AND_INCOME_TAXES` always presented?
+## Q3 — Is `PROFIT_BEFORE_FINANCING_AND_INCOME_TAXES` always presented? — 🔬 RESEARCHED
 
 IFRS 18 requires the subtotal "profit or loss before financing and income taxes",
 but I understand there is an **exception for entities that classify financing- or
@@ -88,33 +89,72 @@ specified main business activity (typically banks and similar financiers)
 it. Getting this wrong produces a statement that is wrong on its face for exactly
 the entities where IFRS 18 matters most.
 
-**Proposal:** model it as a computed flag `subtotal.presented`, derived from the
-confirmed main business activities, and default to `true`. **Verify the exact
-condition against the standard text before seeding `IFRS18-SMBA-002`.**
+### Research finding (2026-09-19) — the hypothesis above was wrong in two ways
 
-**Needed from you:** confirm that verification against the IFRS Foundation text
-is in scope for Phase 5 (it requires access to the standard), and tell me whether
-banks / financial institutions are in or out of the MVP — see MVP §3.
+See `07-ifrs18-source-verification.md` F9. The governing paragraph is
+**IFRS 18.73**, and:
+
+1. **It is a prohibition, not an exemption.** The affected entity is *not
+   permitted* to present the subtotal. It is not a matter of "not required".
+2. **The condition is much narrower** than "financial institutions". It applies
+   to an entity whose specified main business activity is providing financing to
+   customers **and** which classifies in the operating category the interest
+   expense on liabilities *unrelated* to providing financing to customers.
+
+Also established: operating profit and profit before financing and income taxes
+are **both presented even when they are equal** — an entity with no investing
+items still presents both. And an entity caught by paragraph 73 may add its own
+subtotal under **paragraph 24**, but must **not** label it in a way implying
+financing amounts are excluded ("profit before financing" is misleading and not
+permitted).
+
+**Remaining decision:** the approved MVP scope excludes banks, insurers and
+securities firms, so the paragraph 73 path is never exercised on a valid MVP
+input. What should happen if a user nonetheless confirms
+`PROVIDING_FINANCING_TO_CUSTOMERS = true`?
 
 ---
 
-## Q4 — Derivatives and hedging (`IFRS18-LINKED-002`) — **highest uncertainty**
+## Q4 — Derivatives and hedging — 🔬 RESEARCHED
 
 Classification of gains and losses on derivatives depends on whether the
 derivative is used for risk management, whether hedge accounting is designated,
 and what risk is hedged. This cannot be determined from an account name and
 amount alone; it requires the hedging note.
 
-**Proposal for MVP:** do **not** attempt an automatic rule. Route every
-derivative-related line to human review with a targeted question, an explanatory
-note, and a link to the relevant disclosure. Partial automation here would create
-confident-looking wrong answers, which is the worst outcome for this product.
+### Research finding (2026-09-19) — there *is* a rule, and it is usable
 
-**Needed from you:** accept "always human review" for derivatives in MVP.
+See `07-ifrs18-source-verification.md` F6 and F7. **IFRS 18 paragraph B72**:
+gains and losses on a derivative, and on an instrument designated as a hedging
+instrument, are classified **in the same category as the income and expenses
+affected by the risks the instrument is used to manage**. This covers both
+designated hedging instruments and non-designated derivatives used to manage an
+identified risk. Where that would require **grossing up** gains and losses, or
+involve **undue cost or effort**, **all** gains and losses on the derivative go
+to **operating**.
+
+An April 2026 IFRIC agenda decision (F7) applies B72 to a group hedging a net
+foreign-currency exposure and concludes the derivative follows the category of
+the **net exposure being managed** — financing, in that fact pattern.
+
+This changes the proposal. The blocker is not that no rule exists; it is that
+**the rule's input — which risk the derivative manages — cannot be derived from
+an account name and an amount.** It is a fact about the entity, exactly like a
+specified main business activity.
+
+**Revised proposal:** treat it as a `NEEDS_FACT` rule rather than a blanket
+"always review". The engine detects a derivative line, asks a structured
+question ("what risk does this instrument manage?"), and then applies B72
+deterministically to the answer, with an explicit "grossing up / undue cost or
+effort" option that routes to operating. The decision becomes auditable and
+cites B72, instead of being an unexplained human choice.
+
+**Remaining decision:** adopt the B72 `NEEDS_FACT` rule, or keep the simpler
+blanket human review for MVP?
 
 ---
 
-## Q5 — Korean statement conventions
+## Q5 — Korean statement conventions — 🔬 PARTIALLY RESEARCHED, decision open
 
 Points requiring domain confirmation before the normalization dictionary is
 seeded:
@@ -123,15 +163,27 @@ seeded:
    splits across investing and financing (interest on deposits → investing;
    interest on borrowings → financing). When a statement presents only the
    aggregate, we cannot split it from the face of the statement.
-   **Proposal:** flag the aggregate as `requires_human_review`, show the amount,
-   and ask the user to either split it or accept a single classification with the
-   limitation recorded in the audit trail. **Confirm.**
-2. **지분법손익 (equity-method share of profit).** Classified as investing under
-   `IFRS18-INVESTING-001` ⚠ VERIFY — but this is also a case where an entity with
-   an investing main business activity would classify it operating. Handled by
-   `IFRS18-SMBA-001`.
+
+   **Important refinement.** In a Korean statement these captions sit *below*
+   영업이익, so splitting them between investing and financing does **not** move
+   operating profit — it only changes PBFIT and the investing/financing KPIs.
+   **But it is not harmless**, because **IFRS 18 B65** (F5) sends a foreign
+   exchange difference to the category of the item that produced it, and FX on a
+   **trade receivable goes to operating**. A 금융수익 bucket containing 외환차익
+   on trade receivables therefore *does* change operating profit once
+   decomposed. Leaving it aggregated silently understates the operating effect.
+2. **지분법손익 (equity-method share of profit).** ✅ **Resolved, and my earlier
+   draft was wrong.** Equity-method results from associates, joint ventures and
+   unconsolidated subsidiaries are classified in **investing unconditionally** —
+   regardless of the entity's business model, and even if they arise from a main
+   business activity. There is **no** specified-main-business-activity exception,
+   so `IFRS18-SMBA-001` must **not** touch them. See
+   `07-ifrs18-source-verification.md` F3.
 3. **영업외수익 / 영업외비용.** Legacy non-operating captions, frequently
-   aggregated. Under IFRS 18 many of their contents are operating (residual).
+   aggregated. Under IFRS 18 many of their contents are **operating**, because
+   operating is the residual category (F2). **This is very likely the single
+   largest driver of operating-profit change for Korean non-financial
+   corporates**, and it only materialises if the caption is decomposed.
    **Proposal:** never map these to a category directly; always decompose to
    detail lines, and if no detail exists, require review.
 4. **Scale and units.** Korean statements are commonly presented in 백만원 or
@@ -173,3 +225,22 @@ thinking the output is a complete IFRS 18 compliance assessment.
 disaggregation requirements are out of MVP scope and must appear as **stated
 limitations in the product's own text**, alongside the §24 disclaimer — not as
 silent omissions.
+
+---
+
+## Q5 decision required — aggregated caption handling
+
+Items 1 and 3 above converge on one product decision: what does the MVP do when
+the face of the statement shows only an aggregate (금융수익, 영업외수익,
+영업외비용) with no detail lines?
+
+This is not a cosmetic choice. Under IFRS 18 the residual rule (F2) and the FX
+rule (F5) mean an undecomposed 영업외수익 bucket can hide a real operating-profit
+change — which is the number the entire product exists to explain.
+
+Options are put to the user in the accompanying discussion.
+
+## Q6 — still open
+
+Requires the user's intent; no external source can resolve it. See the Q6
+section above.

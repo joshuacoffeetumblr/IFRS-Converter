@@ -218,7 +218,14 @@ authoritative source and effective date, and §8 requires `rule_id` in the audit
 trail. Data-driven rules make the rule set exportable, diffable, reviewable by an
 accountant who does not read Python, and versionable independently of releases.
 
-## 7. Initial rule set (draft — every citation requires verification)
+## 7. Initial rule set
+
+> ⚠️ **Superseded 2026-09-19.** The table below was the pre-research draft and
+> contains an error: it implied a specified main business activity could move
+> equity-method results out of investing. It cannot. The corrected rule set,
+> with paragraph-level citations (B65, B72, 73, 24, B30), lives in
+> [`07-ifrs18-source-verification.md`](07-ifrs18-source-verification.md).
+> The table is kept here as a record of what was proposed before verification.
 
 | rule_id | Requirement implemented | Category | Requires fact | Source ⚠ VERIFY |
 |---|---|---|---|---|
