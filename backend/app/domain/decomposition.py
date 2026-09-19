@@ -19,7 +19,7 @@ from. Otherwise the statement silently stops adding up.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 
 from app.domain.enums import DecompositionStatus
@@ -122,19 +122,7 @@ def decompose(
         for index, component in enumerate(components)
     )
 
-    decomposed_parent = ExtractedLine(
-        ordinal=parent.ordinal,
-        raw_label=parent.raw_label,
-        raw_value=parent.raw_value,
-        amount=parent.amount,
-        sign_normalization=parent.sign_normalization,
-        locator=parent.locator,
-        depth=parent.depth,
-        is_subtotal=parent.is_subtotal,
-        subtotal_kind=parent.subtotal_kind,
-        is_nil=parent.is_nil,
-        note_references=parent.note_references,
-    )
+    decomposed_parent = replace(parent, decomposition_status=DecompositionStatus.DECOMPOSED)
 
     return decomposed_parent, children
 

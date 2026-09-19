@@ -225,3 +225,53 @@ def test_inference_refuses_when_it_does_not_explain_the_statement() -> None:
     # The original is returned, so the reported failure is the real one.
     assert adjusted.lines == unexplainable.lines
     assert not reconcile_extraction(adjusted).passed
+
+
+# ---------------------------------------------------------------------------
+# Decomposed captions must not be counted alongside their children
+# ---------------------------------------------------------------------------
+
+
+def decomposed_line(ordinal: int, label: str, amount: str) -> ExtractedLine:
+    from app.domain.enums import DecompositionStatus
+
+    return ExtractedLine(
+        ordinal=ordinal,
+        raw_label=label,
+        raw_value=amount,
+        amount=Decimal(amount),
+        sign_normalization=SignNormalization.AS_IS,
+        locator=LOCATOR,
+        decomposition_status=DecompositionStatus.DECOMPOSED,
+    )
+
+
+def test_a_decomposed_parent_is_not_added_to_the_running_total() -> None:
+    """Regression: the running total used `is_subtotal`, so a decomposed
+    caption was counted alongside the children carrying its amount."""
+    reconciled = statement(
+        line(0, "매출액", "1000"),
+        line(1, "매출원가", "-700"),
+        decomposed_line(2, "영업외수익", "100"),
+        line(3, "이자수익", "60"),
+        line(4, "유형자산처분이익", "40"),
+        line(5, "당기순이익", "400", subtotal=SubtotalKind.PROFIT_FOR_THE_PERIOD),
+    )
+
+    report = reconcile_extraction(reconciled)
+
+    assert report.passed, [(c.check, str(c.computed), str(c.reported)) for c in report.failures]
+
+
+def test_a_decomposed_parent_is_excluded_from_the_total_check() -> None:
+    reconciled = statement(
+        decomposed_line(0, "영업외수익", "100"),
+        line(1, "이자수익", "60"),
+        line(2, "유형자산처분이익", "40"),
+        line(3, "당기순이익", "100", subtotal=SubtotalKind.PROFIT_FOR_THE_PERIOD),
+    )
+
+    total = sum(ln.amount for ln in reconciled.detail_lines)
+
+    assert total == Decimal("100")
+    assert reconcile_extraction(reconciled).passed

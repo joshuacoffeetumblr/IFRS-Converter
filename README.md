@@ -10,14 +10,19 @@ audit trail, how and why operating profit changes.
 
 ---
 
-## Status: Phase 5 — IFRS 18 classification engine
+## Status: Phase 6 — statement reconstruction and the reconciliation gate
 
-Phases 1–5 are complete: repository and tooling, the database schema,
+Phases 1–6 are complete: repository and tooling, the database schema,
 XLSX + CSV extraction with cell-level provenance and reconciliation against the
 source's own subtotals, account normalization against a catalog of 34 canonical
-accounts and 198 synonyms, and the IFRS 18 classification engine itself.
+accounts and 198 synonyms, the IFRS 18 classification engine, and statement reconstruction behind a
+reconciliation gate.
 
-Statement reconstruction and impact analysis are Phases 6–7.
+Impact analysis — KPIs, the waterfall, the drivers — is Phase 7.
+
+On the synthetic fixture the full chain runs end to end: operating profit moves
+₩120,000m → ₩126,000m while profit before tax and profit for the period do not
+move at all, and all seven reconciliation checks pass.
 
 > **Citations are `VERIFIED_SECONDARY`.** Every rule names the IFRS 18
 > paragraph it implements, confirmed against IFRS Foundation and Big 4
@@ -97,7 +102,9 @@ Verified on 2026-09-19 against a live PostgreSQL 16 and both servers running:
 - The `audit_logs` append-only trigger rejects both UPDATE and DELETE
 - The landing page renders the §24 disclaimer **fetched from the API**, not a
   local copy
-- Backend: 784 tests pass, `ruff` clean, `mypy --strict` clean
+- Backend: 821 tests pass, `ruff` clean, `mypy --strict` clean
+- Total invariance is exact and unconfigurable: reclassification cannot change
+  the sum of all income and expenses
 - 100% of detail lines normalize **without AI** on both the canonical fixture
   and a "messy" one whose captions appear nowhere in the catalog verbatim
   (Phase 4 target was 90%)

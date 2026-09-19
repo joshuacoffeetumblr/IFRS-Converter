@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from decimal import Decimal
 
-from app.domain.enums import SignNormalization, SubtotalKind
+from app.domain.enums import DecompositionStatus, SignNormalization, SubtotalKind
 
 # ---------------------------------------------------------------------------
 # Value objects
@@ -51,11 +51,21 @@ class ExtractedLine:
     subtotal_kind: SubtotalKind | None = None
     is_nil: bool = False
     note_references: tuple[str, ...] = ()
+    #: Set on an aggregate caption that has been broken into components (Q5).
+    decomposition_status: DecompositionStatus = DecompositionStatus.NOT_REQUIRED
 
     @property
     def is_summable(self) -> bool:
-        """Subtotals are reconciliation targets, never inputs to our own sums."""
-        return not self.is_subtotal
+        """Whether this line contributes to a total.
+
+        Two exclusions, both to prevent double counting. A subtotal already
+        aggregates the lines above it and is a reconciliation target, not an
+        input. A decomposed caption is a container whose amount is carried by
+        its children.
+        """
+        return (
+            not self.is_subtotal and self.decomposition_status is not DecompositionStatus.DECOMPOSED
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -166,8 +176,11 @@ def reconcile_extraction(
             )
             # Reset to the reported figure so one bad line does not cascade.
             running = line.amount
-        else:
+        elif line.is_summable:
             running += line.amount
+        # A decomposed caption is skipped: it is neither a subtotal nor an
+        # input, because its amount is carried by the children that follow it.
+        # Adding it here would double count them against the next subtotal.
 
     total_of_details = sum((line.amount for line in statement.detail_lines), start=Decimal(0))
     last_subtotal = subtotals[-1]

@@ -194,7 +194,9 @@ Checks performed after reconstruction:
 | Subtotal agreement | computed subtotals = reported subtotals where present | configurable |
 | Operating bridge | reported OP + Σ(bridge items) = IFRS 18 OP | exact |
 
-**Total invariance is exact and non-negotiable.** IFRS 18 changes *presentation*,
+**Total invariance is exact and non-negotiable** (implemented Phase 6:
+`app/domain/validation.py`; it takes no tolerance parameter at all, so it
+cannot be relaxed by configuration). IFRS 18 changes *presentation*,
 not measurement: reclassification moves an item between categories, so the sum of
 all income and expenses cannot change. If it does, the software has a bug. This
 invariant is the backbone of the test suite.
