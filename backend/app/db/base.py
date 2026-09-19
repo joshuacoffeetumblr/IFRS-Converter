@@ -9,9 +9,10 @@ from __future__ import annotations
 import datetime as dt
 import uuid
 from decimal import Decimal
+from enum import StrEnum
 from typing import Annotated
 
-from sqlalchemy import DateTime, MetaData, Numeric, func, text
+from sqlalchemy import CheckConstraint, DateTime, MetaData, Numeric, String, func, text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -55,3 +56,34 @@ class TimestampMixin:
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+
+def enum_check(
+    column: str,
+    enum_cls: type[StrEnum],
+    *,
+    nullable: bool = False,
+) -> CheckConstraint:
+    """Build a ``CHECK`` constraint restricting ``column`` to ``enum_cls`` members.
+
+    ERD §4.1: enum-like columns are ``text`` plus a ``CHECK`` rather than a
+    PostgreSQL ``ENUM`` type, because spec §9 requires the classification
+    taxonomy to stay extensible and altering a PG enum is awkward to migrate and
+    to roll back. Generating the constraint from the Python enum keeps
+    ``app.domain.enums`` the single source of truth: adding a member and running
+    ``alembic revision --autogenerate`` produces the migration, and CI's
+    ``alembic check`` fails if someone forgets.
+
+    Members are sorted so the emitted SQL is stable and autogenerate does not
+    produce spurious diffs when an enum is reordered.
+    """
+    allowed = ", ".join(f"'{member.value}'" for member in sorted(enum_cls, key=lambda m: m.value))
+    predicate = f"{column} IN ({allowed})"
+    if nullable:
+        predicate = f"{column} IS NULL OR {predicate}"
+    return CheckConstraint(predicate, name=f"{column}_valid")
+
+
+#: Enum-backed columns are stored as text (ERD §4.1). ``String`` rather than
+#: ``Text`` so the length is documented, with the CHECK doing the real work.
+EnumText = Annotated[str, mapped_column(String(64))]

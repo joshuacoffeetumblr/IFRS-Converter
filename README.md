@@ -10,10 +10,11 @@ audit trail, how and why operating profit changes.
 
 ---
 
-## Status: Phase 1 — foundation
+## Status: Phase 2 — data model complete
 
-Design was approved on 2026-09-19 and Phase 1 (repository, tooling, skeleton,
-CI) is complete. No accounting logic exists yet; that arrives in Phases 5–7.
+Phases 1 and 2 are complete: repository and tooling, then the full database
+schema (17 tables, 65 CHECK constraints, reversible migration). No accounting
+logic exists yet; that arrives in Phases 5–7.
 
 IFRS 18 citations were verified on 2026-09-19 against IFRS Foundation and Big 4
 sources — see
@@ -61,16 +62,20 @@ cd frontend && npm run dev                               # http://localhost:3000
 
 API docs at `http://localhost:8000/docs`.
 
-### Phase 1 verification
+### Verification
 
 Verified on 2026-09-19 against a live PostgreSQL 16 and both servers running:
 
 - `GET /api/health` → `200`
 - `GET /api/ready` → `200` with a database, `503 degraded` without
-- `alembic upgrade head` applies; `alembic check` reports no drift
+- `alembic upgrade head` applies to a **completely empty** database (it creates
+  the `citext` extension itself), `alembic downgrade base` reverses it, and
+  `alembic check` reports no drift from the models
+- The `audit_logs` append-only trigger rejects both UPDATE and DELETE
 - The landing page renders the §24 disclaimer **fetched from the API**, not a
   local copy
-- Backend: 11 tests pass, `ruff` clean, `mypy --strict` clean
+- Backend: 48 tests pass (21 pure + 27 against PostgreSQL), `ruff` clean,
+  `mypy --strict` clean
 - Frontend: `eslint` clean, `tsc --noEmit` clean, production build succeeds,
   3 Playwright tests pass, `npm audit` reports 0 vulnerabilities
 

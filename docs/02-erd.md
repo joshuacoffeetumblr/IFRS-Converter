@@ -1,6 +1,10 @@
 # Task 3 — Entity Relationship Diagram
 
-> Status: **proposal, awaiting approval.** No migrations written yet.
+> Status: **implemented 2026-09-19** (Phase 2). Models live in
+> `backend/app/models/`, the migration in
+> `backend/alembic/versions/*_initial_schema.py`. 17 tables, 65 CHECK
+> constraints. `alembic check` runs in CI, so the schema cannot drift from
+> the models without failing the build.
 
 ## 1. Overview diagram
 
@@ -403,6 +407,12 @@ Append-only. No `UPDATE` or `DELETE` grant for the application role.
 pipeline redacts amounts from application logs (spec §32) — the audit table is
 the one intentional, access-controlled place where those values live.
 
+**Append-only enforcement (implemented).** A `BEFORE UPDATE OR DELETE` trigger
+raises `restrict_violation` on any attempt to modify a row. A trigger was
+chosen over role grants because the application commonly owns its tables in
+development and a table owner bypasses `REVOKE`; a trigger holds regardless of
+role and is directly testable (`test_audit_log_cannot_be_updated`).
+
 ## 3. Project state machine
 
 ```
@@ -432,8 +442,11 @@ Rules:
 1. **`text` + `CHECK` instead of PostgreSQL `ENUM`.** Spec §9 requires the
    classification taxonomy to be extensible. Altering a PG enum is awkward inside
    a transaction and painful to roll back; a `CHECK` constraint changes with a
-   one-line migration. The authoritative enum list lives in Python (`domain/`)
-   and the constraint is generated from it.
+   one-line migration. The authoritative enum list lives in Python
+   (`app/domain/enums.py`) and the constraint is **generated** from it by
+   `app.db.base.enum_check`, which sorts members so the emitted SQL is stable.
+   Adding an enum member and running `alembic revision --autogenerate` produces
+   the migration; CI's `alembic check` fails if someone forgets.
 
 2. **Category and subcategory are two columns, not one.** Spec §9 asks for the
    five top-level categories with optional finer granularity. Storing
@@ -472,3 +485,41 @@ Then, by construction:
 That equality is asserted as the operating-bridge reconciliation check (arch §7),
 which is what makes the waterfall guaranteed to add up rather than merely
 plausible.
+
+
+## 6. Implementation notes (Phase 2)
+
+### Constraints that encode product rules, not just data shapes
+
+Several `CHECK` constraints exist to make a *specification* rule unbreakable at
+the storage layer, not merely to keep columns tidy:
+
+| Constraint | Enforces |
+|---|---|
+| `ai_always_requires_review` | Spec §1 — an AI proposal is never final, whatever its confidence |
+| `ai_cannot_self_confirm` | Spec §10 — only a human confirms a main business activity |
+| `override_records_reviewer` | Spec §8 — every human decision names the human and the time |
+| `rule_method_records_rule_id` | Spec §8 — a rule-derived decision must cite its rule |
+| `finalized_requires_reconciliation` | Spec §19 — a project cannot be finalized while unreconciled |
+| `subtotal_has_no_account` | A subtotal is a reconciliation target, never a classifiable fact |
+| `subtotal_not_decomposable` | A subtotal cannot also be an aggregate awaiting decomposition |
+| `decomposed_parent_is_not_a_child` | Prevents a chain of containers hiding amounts from every sum |
+| `line_scope_requires_line` | Q4 — a B72 question must name the instrument it asks about |
+
+Each has a test in `tests/test_schema_constraints.py` that asserts the database
+actually refuses the bad state. A documented constraint that is not enforced is
+worse than no constraint, so none is taken on trust.
+
+### `is_summable`
+
+`FinancialStatementLine.is_summable` is the single place that decides whether a
+line contributes to a category total:
+
+```python
+not self.is_subtotal and self.decomposition_status != DecompositionStatus.DECOMPOSED
+```
+
+Both exclusions exist to prevent double counting: a subtotal already aggregates
+lines below it, and a decomposed parent's amount is carried by its children.
+An index on `(statement_id, is_subtotal, decomposition_status)` supports the
+summation query.
