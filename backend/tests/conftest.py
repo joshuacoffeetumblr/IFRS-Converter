@@ -64,3 +64,25 @@ async def db_session() -> AsyncIterator[AsyncSession]:
         await transaction.rollback()
         await connection.close()
         await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def api(app: FastAPI, db_session: AsyncSession) -> AsyncIterator[AsyncClient]:
+    """A client whose requests run inside the test's transaction.
+
+    Overriding the session dependency is what makes an API test rollback-safe:
+    without it each request would open its own connection and commit, leaving
+    rows behind for the next test to trip over.
+    """
+    from app.db.session import get_session
+
+    async def _session_override() -> AsyncIterator[AsyncSession]:
+        yield db_session
+
+    app.dependency_overrides[get_session] = _session_override
+    transport = ASGITransport(app=app)
+    try:
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            yield ac
+    finally:
+        app.dependency_overrides.pop(get_session, None)

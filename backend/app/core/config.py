@@ -8,6 +8,8 @@ requires reconciliation tolerances to be explicit.
 
 from __future__ import annotations
 
+import os
+import secrets
 from decimal import Decimal
 from functools import lru_cache
 from typing import Literal
@@ -71,6 +73,21 @@ class UploadSettings(BaseSettings):
     retention_days: int = 30
 
 
+class AuthSettings(BaseSettings):
+    """Bearer-token settings (spec §31)."""
+
+    model_config = SettingsConfigDict(env_prefix="IFRS18_AUTH_")
+
+    #: Signing key. The default is generated per process, which is deliberate:
+    #: a shared hardcoded default would be a published signing key, and an
+    #: unset key in production must break loudly rather than silently accept
+    #: tokens anyone could mint. `Settings.check_production_ready` enforces it.
+    secret_key: str = Field(default_factory=lambda: secrets.token_urlsafe(48))
+    token_ttl_minutes: int = 12 * 60
+    #: Minimum password length. Length dominates composition rules in practice.
+    min_password_length: int = 12
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -91,6 +108,7 @@ class Settings(BaseSettings):
     #: Comma-separated in the environment; parsed into a list by pydantic.
     cors_origins: list[str] = ["http://localhost:3000"]
 
+    auth: AuthSettings = Field(default_factory=AuthSettings)
     classification: ClassificationSettings = Field(default_factory=ClassificationSettings)
     reconciliation: ReconciliationSettings = Field(default_factory=ReconciliationSettings)
     upload: UploadSettings = Field(default_factory=UploadSettings)
@@ -101,6 +119,22 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
         return value
+
+    def check_production_ready(self) -> None:
+        """Fail fast on configuration that is only safe in development.
+
+        A generated signing key is fine locally — every restart invalidates
+        tokens, which is harmless. In production it means tokens do not survive
+        a deployment, and more importantly it means nobody set the key on
+        purpose. Refusing to start is better than discovering it later.
+        """
+        if self.environment != "production":
+            return
+        if not os.environ.get("IFRS18_AUTH_SECRET_KEY"):
+            raise RuntimeError(
+                "IFRS18_AUTH_SECRET_KEY must be set in production; refusing to "
+                "start with a per-process signing key."
+            )
 
     @property
     def sync_database_url(self) -> str:

@@ -15,6 +15,7 @@ dependencies = [
     "structlog>=24.4",
     "python-multipart>=0.0.17",
     "openpyxl>=3.1.5",
+    "pyjwt>=2.10",
 ]
 
 [project.optional-dependencies]
@@ -65,6 +66,10 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "ANN201", "ANN001"]
+# S105/S106 flag hardcoded credentials. In these files they are test
+# fixtures and the OAuth token type, not secrets.
+"tests/test_api_auth.py" = ["S101", "S105", "S106", "ANN201", "ANN001"]
+"tests/test_api_projects.py" = ["S101", "S105", "S106", "ANN201", "ANN001"]
 "alembic/**" = ["ANN", "E501", "N999"]
 "scripts/**" = ["RUF001"]
 # RUF001 flags characters that look like ASCII lookalikes. These modules exist

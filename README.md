@@ -19,8 +19,14 @@ accounts and 198 synonyms, the IFRS 18 classification engine, statement reconstr
 reconciliation gate, impact analysis, and Excel export.
 
 The analytical core is complete and driven end to end by
-`app/services/pipeline.py`. What remains is the delivery surface: the REST API
-beyond health and metadata, and the frontend screens (Phase 9).
+`app/services/pipeline.py`.
+
+The REST API has begun: authentication, projects, and the RFC 9457 error
+contract are in place. The remaining endpoints (upload, extract, classify,
+review, finalize, statement, impact, export) and the frontend screens are the
+next work — see
+[`docs/03-api-specification.md`](docs/03-api-specification.md) for what is
+built and what is not.
 
 ```bash
 make demo   # runs the whole chain over the fixture and writes an .xlsx
@@ -120,7 +126,7 @@ Verified on 2026-09-19 against a live PostgreSQL 16 and both servers running:
 - The `audit_logs` append-only trigger rejects both UPDATE and DELETE
 - The landing page renders the §24 disclaimer **fetched from the API**, not a
   local copy
-- Backend: 879 tests pass, `ruff` clean, `mypy --strict` clean
+- Backend: 919 tests pass, `ruff` clean, `mypy --strict` clean
 - Total invariance is exact and unconfigurable: reclassification cannot change
   the sum of all income and expenses
 - The waterfall is derived from the same per-line movement the gate checks, so

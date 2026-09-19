@@ -8,7 +8,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import health, meta
+from app.api.errors import install_error_handlers
+from app.api.routers import auth, health, meta, projects
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging, get_logger
 from app.db.session import dispose_engine
@@ -28,6 +29,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
+    # Refuse to start on configuration that is only safe in development.
+    settings.check_production_ready()
 
     app = FastAPI(
         title="IFRS 18 Impact Analyzer API",
@@ -50,8 +53,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.state.settings = settings
 
+    install_error_handlers(app)
+
     app.include_router(health.router, prefix=settings.api_prefix)
     app.include_router(meta.router, prefix=settings.api_prefix)
+    app.include_router(auth.router, prefix=settings.api_prefix)
+    app.include_router(projects.router, prefix=settings.api_prefix)
 
     return app
 
