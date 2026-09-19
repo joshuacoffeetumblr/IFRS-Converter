@@ -10,11 +10,14 @@ audit trail, how and why operating profit changes.
 
 ---
 
-## Status: Phase 3 — file import complete (XLSX + CSV)
+## Status: Phase 4 — account normalization
 
-Phases 1–3b are complete: repository and tooling, the database schema
-(17 tables, 65 CHECK constraints), and XLSX + CSV extraction with cell-level
-provenance and reconciliation against the source's own subtotals.
+Phases 1–4 are complete: repository and tooling, the database schema
+(17 tables, 65 CHECK constraints), XLSX + CSV extraction with cell-level
+provenance and reconciliation against the source's own subtotals, and account
+normalization against a catalog of 34 canonical accounts and 198 synonyms.
+
+The IFRS 18 classification engine is Phase 5 — the next step.
 
 Both adapters share one extraction pipeline (`app/adapters/ingest/grid.py`),
 so the format is transport only — a test asserts the two produce identical
@@ -70,6 +73,7 @@ cd frontend && npm run dev                               # http://localhost:3000
 | `make test` | Backend test suite |
 | `make e2e` | Playwright tests (stack must be running) |
 | `make revision m="..."` | Autogenerate a migration |
+| `make seed` | Load the account catalog into the database |
 
 API docs at `http://localhost:8000/docs`.
 
@@ -85,7 +89,10 @@ Verified on 2026-09-19 against a live PostgreSQL 16 and both servers running:
 - The `audit_logs` append-only trigger rejects both UPDATE and DELETE
 - The landing page renders the §24 disclaimer **fetched from the API**, not a
   local copy
-- Backend: 200 tests pass, `ruff` clean, `mypy --strict` clean
+- Backend: 282 tests pass, `ruff` clean, `mypy --strict` clean
+- 100% of detail lines normalize **without AI** on both the canonical fixture
+  and a "messy" one whose captions appear nowhere in the catalog verbatim
+  (Phase 4 target was 90%)
 - Every enum-backed CHECK constraint is compared against its Python enum,
   because Alembic autogenerate does not diff CheckConstraints
 - All three Korean sign conventions extract to identical figures, and an

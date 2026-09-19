@@ -100,6 +100,7 @@ def build_workbook(
     style: SignStyle = SignStyle.PARENTHESES,
     sheet_name: str = "손익계산서",
     include_comparative: bool = True,
+    labels: dict[str, str] | None = None,
 ) -> Path:
     """Write a synthetic statement and return its path."""
     workbook = Workbook()
@@ -128,7 +129,8 @@ def build_workbook(
 
     for offset, row in enumerate(STATEMENT_ROWS):
         excel_row = header_row + 1 + offset
-        label_cell = sheet.cell(row=excel_row, column=1, value=row.label)
+        printed_label = (labels or {}).get(row.label, row.label)
+        label_cell = sheet.cell(row=excel_row, column=1, value=printed_label)
         label_cell.alignment = Alignment(indent=row.depth)
         if row.is_subtotal:
             label_cell.font = Font(bold=True)
@@ -144,6 +146,32 @@ def build_workbook(
     sheet.column_dimensions["A"].width = 28
     workbook.save(path)
     return path
+
+
+#: The same statement with captions as a real filing might print them:
+#: enumerated, spaced differently, carrying note cross-references, or using a
+#: different house term. Used to prove normalization does real work rather than
+#: matching labels that were copied out of the catalog.
+MESSY_LABELS: dict[str, str] = {
+    "매출액": "Ⅰ. 매출액",
+    "매출원가": "Ⅱ. 매출원가(주석 22)",
+    "매출총이익": "Ⅲ. 매출총이익",
+    "판매비와관리비": "Ⅳ. 판매비 및 관리비",
+    "영업이익": "Ⅴ. 영업이익",
+    "기타수익": "기타의수익",
+    "금융수익": "금융 수익",
+    "지분법이익": "관계기업투자이익",
+    "금융비용": "금융원가",
+    "기타비용": "기타의비용",
+    "법인세차감전순이익": "Ⅵ. 법인세비용차감전순이익",
+    "법인세비용": "법인세등",
+    "당기순이익": "Ⅶ. 당기순이익",
+}
+
+
+def build_messy_workbook(path: Path, **kwargs: object) -> Path:
+    """A workbook whose captions are not the catalog's canonical labels."""
+    return build_workbook(path, labels=MESSY_LABELS, **kwargs)  # type: ignore[arg-type]
 
 
 def build_csv(

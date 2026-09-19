@@ -57,6 +57,10 @@ test: ## Run the backend test suite
 e2e: ## Run Playwright end-to-end tests (requires the stack to be running)
 	cd $(FRONTEND) && npx playwright test
 
+.PHONY: seed
+seed: ## Load the account catalog into the database
+	cd $(BACKEND) && .venv/bin/python -m app.cli seed-accounts
+
 .PHONY: fixture
 fixture: ## Write the synthetic Korean statement fixtures to ./fixtures for inspection
 	cd $(BACKEND) && .venv/bin/python -m tests.fixtures.dump ../fixtures

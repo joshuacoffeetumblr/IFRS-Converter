@@ -35,6 +35,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"app/data/normalized_accounts.json" = "app/data/normalized_accounts.json"
+
 # ---------------------------------------------------------------------------
 # Lint
 # ---------------------------------------------------------------------------
@@ -69,6 +72,10 @@ ignore = [
 # Excel exports actually contain. Escaping them does not work either, because
 # `ruff format` decodes \uXXXX escapes back to literal characters.
 "app/domain/money.py" = ["RUF001"]
+"app/domain/accounts.py" = ["RUF001", "RUF003"]
+"tests/test_accounts.py" = ["RUF001", "RUF003"]
+"tests/test_catalog.py" = ["RUF001", "RUF003"]
+"tests/test_decomposition.py" = ["RUF001"]
 "app/adapters/ingest/xlsx.py" = ["RUF001"]
 "app/adapters/ingest/grid.py" = ["RUF001"]
 "app/adapters/ingest/csv.py" = ["RUF001"]

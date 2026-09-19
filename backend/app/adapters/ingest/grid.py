@@ -16,6 +16,7 @@ import re
 from dataclasses import dataclass, field
 from decimal import Decimal
 
+from app.domain.accounts import normalize_label
 from app.domain.enums import SignNormalization, SubtotalKind
 from app.domain.extraction import ExtractedLine, ExtractedStatement, SourceLocator
 from app.domain.money import (
@@ -88,12 +89,22 @@ def normalise(label: object) -> str:
 
 
 def classify_subtotal(label: str) -> SubtotalKind | None:
-    """Return the subtotal a caption denotes, or ``None`` for a detail line."""
-    compact = normalise(label)
+    """Return the subtotal a caption denotes, or ``None`` for a detail line.
+
+    Uses the same canonical form as account matching, so an enumerated caption
+    such as ``Ⅲ. 매출총이익`` or ``Ⅵ. 법인세비용차감전순이익`` is recognised. Doing
+    only whitespace removal here was a real defect: enumerated subtotals were
+    treated as ordinary lines, which both broke reconciliation (their amounts
+    were added to the running total they were meant to verify) and exposed them
+    to fuzzy account matching, where 영업이익 matched 영업외이익 — opposite
+    concepts one character apart.
+    """
+    compact = normalize_label(label)
     if not compact:
         return None
     for caption, kind in SUBTOTAL_CAPTIONS:
-        if compact == caption or compact.startswith(caption):
+        canonical = normalize_label(caption)
+        if compact == canonical or compact.startswith(canonical):
             return kind
     return None
 

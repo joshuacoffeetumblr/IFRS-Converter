@@ -1,0 +1,223 @@
+{
+  "version": "2026.09.1",
+  "note": "Canonical income-statement accounts for Korean filings (spec §4 step 3). Data, not code, so an accountant can review and diff it without reading Python. 'ambiguous_by_default' marks aggregate captions whose contents cannot be inferred from the caption alone; they always reach human review and are candidates for note-based decomposition (open question Q5).",
+  "accounts": [
+    {
+      "code": "REVENUE", "label_ko": "매출액", "label_en": "Revenue",
+      "section": "PL", "nature": "INCOME",
+      "synonyms_ko": ["매출", "수익(매출액)", "영업수익", "매출수익", "영업수익(매출액)", "수익"],
+      "synonyms_en": ["Revenue", "Sales", "Net sales", "Turnover", "Operating revenue"]
+    },
+    {
+      "code": "COST_OF_SALES", "label_ko": "매출원가", "label_en": "Cost of sales",
+      "section": "PL", "nature": "EXPENSE",
+      "synonyms_ko": ["매출원가", "영업비용(매출원가)", "제품매출원가", "상품매출원가"],
+      "synonyms_en": ["Cost of sales", "Cost of goods sold", "Cost of revenue"]
+    },
+    {
+      "code": "SELLING_AND_ADMIN_EXPENSES", "label_ko": "판매비와관리비",
+      "label_en": "Selling, general and administrative expenses",
+      "section": "PL", "nature": "EXPENSE",
+      "synonyms_ko": ["판매비와관리비", "판매비및관리비", "판매관리비", "판관비", "판매비와일반관리비"],
+      "synonyms_en": ["Selling and administrative expenses", "SG&A", "Administrative expenses"]
+    },
+    {
+      "code": "EMPLOYEE_BENEFITS", "label_ko": "급여", "label_en": "Employee benefits",
+      "section": "PL", "nature": "EXPENSE", "parent_code": "SELLING_AND_ADMIN_EXPENSES",
+      "synonyms_ko": ["급여", "종업원급여", "인건비", "임직원급여"],
+      "synonyms_en": ["Salaries", "Employee benefits", "Personnel expenses"]
+    },
+    {
+      "code": "RETIREMENT_BENEFITS", "label_ko": "퇴직급여", "label_en": "Retirement benefits",
+      "section": "PL", "nature": "EXPENSE", "parent_code": "SELLING_AND_ADMIN_EXPENSES",
+      "synonyms_ko": ["퇴직급여", "퇴직급여충당금전입액"],
+      "synonyms_en": ["Retirement benefits", "Pension expense"]
+    },
+    {
+      "code": "DEPRECIATION", "label_ko": "감가상각비", "label_en": "Depreciation",
+      "section": "PL", "nature": "EXPENSE", "parent_code": "SELLING_AND_ADMIN_EXPENSES",
+      "synonyms_ko": ["감가상각비", "유형자산감가상각비", "사용권자산감가상각비"],
+      "synonyms_en": ["Depreciation", "Depreciation expense"]
+    },
+    {
+      "code": "AMORTISATION", "label_ko": "무형자산상각비", "label_en": "Amortisation",
+      "section": "PL", "nature": "EXPENSE", "parent_code": "SELLING_AND_ADMIN_EXPENSES",
+      "synonyms_ko": ["무형자산상각비", "상각비"],
+      "synonyms_en": ["Amortisation", "Amortization", "Amortisation of intangibles"]
+    },
+    {
+      "code": "ADVERTISING", "label_ko": "광고선전비", "label_en": "Advertising",
+      "section": "PL", "nature": "EXPENSE", "parent_code": "SELLING_AND_ADMIN_EXPENSES",
+      "synonyms_ko": ["광고선전비", "광고비", "판매촉진비"],
+      "synonyms_en": ["Advertising", "Advertising and promotion"]
+    },
+    {
+      "code": "RESEARCH_AND_DEVELOPMENT", "label_ko": "경상연구개발비",
+      "label_en": "Research and development", "section": "PL", "nature": "EXPENSE",
+      "parent_code": "SELLING_AND_ADMIN_EXPENSES",
+      "synonyms_ko": ["경상연구개발비", "연구개발비", "경상개발비"],
+      "synonyms_en": ["Research and development", "R&D expenses"]
+    },
+    {
+      "code": "BAD_DEBT_EXPENSE", "label_ko": "대손상각비", "label_en": "Bad debt expense",
+      "section": "PL", "nature": "EXPENSE", "parent_code": "SELLING_AND_ADMIN_EXPENSES",
+      "synonyms_ko": ["대손상각비", "대손충당금전입액"],
+      "synonyms_en": ["Bad debt expense", "Impairment loss on receivables"]
+    },
+
+    {
+      "code": "OTHER_INCOME", "label_ko": "기타수익", "label_en": "Other income",
+      "section": "PL", "nature": "INCOME", "ambiguous_by_default": true,
+      "synonyms_ko": ["기타수익", "기타영업외수익", "잡이익", "기타의수익"],
+      "synonyms_en": ["Other income", "Miscellaneous income"]
+    },
+    {
+      "code": "OTHER_EXPENSES", "label_ko": "기타비용", "label_en": "Other expenses",
+      "section": "PL", "nature": "EXPENSE", "ambiguous_by_default": true,
+      "synonyms_ko": ["기타비용", "기타영업외비용", "잡손실", "기타의비용"],
+      "synonyms_en": ["Other expenses", "Miscellaneous expenses"]
+    },
+    {
+      "code": "NON_OPERATING_INCOME", "label_ko": "영업외수익",
+      "label_en": "Non-operating income", "section": "PL", "nature": "INCOME",
+      "ambiguous_by_default": true,
+      "synonyms_ko": ["영업외수익", "영업외이익"],
+      "synonyms_en": ["Non-operating income"]
+    },
+    {
+      "code": "NON_OPERATING_EXPENSES", "label_ko": "영업외비용",
+      "label_en": "Non-operating expenses", "section": "PL", "nature": "EXPENSE",
+      "ambiguous_by_default": true,
+      "synonyms_ko": ["영업외비용", "영업외손실"],
+      "synonyms_en": ["Non-operating expenses"]
+    },
+    {
+      "code": "FINANCE_INCOME", "label_ko": "금융수익", "label_en": "Finance income",
+      "section": "PL", "nature": "INCOME", "ambiguous_by_default": true,
+      "synonyms_ko": ["금융수익", "금융이익"],
+      "synonyms_en": ["Finance income", "Financial income"]
+    },
+    {
+      "code": "FINANCE_COSTS", "label_ko": "금융비용", "label_en": "Finance costs",
+      "section": "PL", "nature": "EXPENSE", "ambiguous_by_default": true,
+      "synonyms_ko": ["금융비용", "금융원가", "금융손실"],
+      "synonyms_en": ["Finance costs", "Financial expenses"]
+    },
+
+    {
+      "code": "INTEREST_INCOME", "label_ko": "이자수익", "label_en": "Interest income",
+      "section": "PL", "nature": "INCOME", "parent_code": "FINANCE_INCOME",
+      "synonyms_ko": ["이자수익", "예금이자", "이자수입"],
+      "synonyms_en": ["Interest income", "Interest revenue"]
+    },
+    {
+      "code": "INTEREST_EXPENSE", "label_ko": "이자비용", "label_en": "Interest expense",
+      "section": "PL", "nature": "EXPENSE", "parent_code": "FINANCE_COSTS",
+      "synonyms_ko": ["이자비용", "차입금이자", "사채이자"],
+      "synonyms_en": ["Interest expense", "Interest costs", "Finance charges"]
+    },
+    {
+      "code": "DIVIDEND_INCOME", "label_ko": "배당금수익", "label_en": "Dividend income",
+      "section": "PL", "nature": "INCOME", "parent_code": "FINANCE_INCOME",
+      "synonyms_ko": ["배당금수익", "배당수익"],
+      "synonyms_en": ["Dividend income"]
+    },
+    {
+      "code": "FX_GAIN", "label_ko": "외환차익", "label_en": "Foreign exchange gain",
+      "section": "PL", "nature": "INCOME",
+      "synonyms_ko": ["외환차익", "외화환산이익", "외환거래이익", "외화차익"],
+      "synonyms_en": ["Foreign exchange gain", "FX gain", "Gain on foreign currency translation"]
+    },
+    {
+      "code": "FX_LOSS", "label_ko": "외환차손", "label_en": "Foreign exchange loss",
+      "section": "PL", "nature": "EXPENSE",
+      "synonyms_ko": ["외환차손", "외화환산손실", "외환거래손실", "외화차손"],
+      "synonyms_en": ["Foreign exchange loss", "FX loss", "Loss on foreign currency translation"]
+    },
+    {
+      "code": "SHARE_OF_PROFIT_OF_ASSOCIATES", "label_ko": "지분법이익",
+      "label_en": "Share of profit of associates and joint ventures",
+      "section": "PL", "nature": "INCOME",
+      "synonyms_ko": ["지분법이익", "지분법손익", "관계기업투자이익", "지분법평가이익", "관계기업및공동기업투자이익"],
+      "synonyms_en": ["Share of profit of associates", "Equity method income", "Share of results of associates"]
+    },
+    {
+      "code": "SHARE_OF_LOSS_OF_ASSOCIATES", "label_ko": "지분법손실",
+      "label_en": "Share of loss of associates and joint ventures",
+      "section": "PL", "nature": "EXPENSE",
+      "synonyms_ko": ["지분법손실", "관계기업투자손실", "지분법평가손실"],
+      "synonyms_en": ["Share of loss of associates", "Equity method loss"]
+    },
+    {
+      "code": "GAIN_ON_DISPOSAL_OF_PPE", "label_ko": "유형자산처분이익",
+      "label_en": "Gain on disposal of property, plant and equipment",
+      "section": "PL", "nature": "INCOME",
+      "synonyms_ko": ["유형자산처분이익", "유형자산매각이익", "자산처분이익"],
+      "synonyms_en": ["Gain on disposal of PPE", "Gain on sale of fixed assets"]
+    },
+    {
+      "code": "LOSS_ON_DISPOSAL_OF_PPE", "label_ko": "유형자산처분손실",
+      "label_en": "Loss on disposal of property, plant and equipment",
+      "section": "PL", "nature": "EXPENSE",
+      "synonyms_ko": ["유형자산처분손실", "유형자산매각손실", "자산처분손실"],
+      "synonyms_en": ["Loss on disposal of PPE", "Loss on sale of fixed assets"]
+    },
+    {
+      "code": "IMPAIRMENT_LOSS", "label_ko": "손상차손", "label_en": "Impairment loss",
+      "section": "PL", "nature": "EXPENSE",
+      "synonyms_ko": ["손상차손", "유형자산손상차손", "무형자산손상차손", "영업권손상차손"],
+      "synonyms_en": ["Impairment loss", "Impairment of assets"]
+    },
+    {
+      "code": "DERIVATIVE_GAIN", "label_ko": "파생상품평가이익",
+      "label_en": "Gain on derivatives", "section": "PL", "nature": "INCOME",
+      "synonyms_ko": ["파생상품평가이익", "파생상품거래이익", "파생상품이익", "통화선도평가이익", "통화선도거래이익"],
+      "synonyms_en": ["Gain on derivatives", "Gain on valuation of derivatives"]
+    },
+    {
+      "code": "DERIVATIVE_LOSS", "label_ko": "파생상품평가손실",
+      "label_en": "Loss on derivatives", "section": "PL", "nature": "EXPENSE",
+      "synonyms_ko": ["파생상품평가손실", "파생상품거래손실", "파생상품손실", "통화선도평가손실", "통화선도거래손실"],
+      "synonyms_en": ["Loss on derivatives", "Loss on valuation of derivatives"]
+    },
+    {
+      "code": "FVPL_FINANCIAL_ASSET_GAIN", "label_ko": "당기손익-공정가치측정금융자산평가이익",
+      "label_en": "Gain on financial assets at fair value through profit or loss",
+      "section": "PL", "nature": "INCOME",
+      "synonyms_ko": ["당기손익-공정가치측정금융자산평가이익", "당기손익공정가치측정금융자산평가이익", "금융자산평가이익", "단기매매증권평가이익"],
+      "synonyms_en": ["Gain on FVPL financial assets"]
+    },
+    {
+      "code": "FVPL_FINANCIAL_ASSET_LOSS", "label_ko": "당기손익-공정가치측정금융자산평가손실",
+      "label_en": "Loss on financial assets at fair value through profit or loss",
+      "section": "PL", "nature": "EXPENSE",
+      "synonyms_ko": ["당기손익-공정가치측정금융자산평가손실", "당기손익공정가치측정금융자산평가손실", "금융자산평가손실", "단기매매증권평가손실"],
+      "synonyms_en": ["Loss on FVPL financial assets"]
+    },
+    {
+      "code": "RENTAL_INCOME", "label_ko": "임대료수익", "label_en": "Rental income",
+      "section": "PL", "nature": "INCOME",
+      "synonyms_ko": ["임대료수익", "임대수익", "임대료"],
+      "synonyms_en": ["Rental income", "Lease income"]
+    },
+    {
+      "code": "GOVERNMENT_GRANT_INCOME", "label_ko": "정부보조금수익",
+      "label_en": "Government grant income", "section": "PL", "nature": "INCOME",
+      "synonyms_ko": ["정부보조금수익", "정부보조금", "국고보조금"],
+      "synonyms_en": ["Government grant income", "Government grants"]
+    },
+    {
+      "code": "INCOME_TAX_EXPENSE", "label_ko": "법인세비용", "label_en": "Income tax expense",
+      "section": "PL", "nature": "EXPENSE",
+      "synonyms_ko": ["법인세비용", "법인세등", "법인세비용(수익)", "계속영업법인세비용"],
+      "synonyms_en": ["Income tax expense", "Corporate income tax", "Tax expense"]
+    },
+    {
+      "code": "DISCONTINUED_OPERATIONS_RESULT", "label_ko": "중단영업손익",
+      "label_en": "Profit or loss from discontinued operations",
+      "section": "PL", "nature": "INCOME",
+      "synonyms_ko": ["중단영업손익", "중단영업이익", "중단영업손실", "세후중단영업손익"],
+      "synonyms_en": ["Discontinued operations", "Profit from discontinued operations"]
+    }
+  ]
+}
