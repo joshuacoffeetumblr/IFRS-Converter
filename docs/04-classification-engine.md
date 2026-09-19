@@ -142,6 +142,17 @@ questions. `None` (unknown) and `False` (user said no) are never conflated.
 This is the engine's most important structural feature and the reason the
 question in spec §5 is deterministic rather than AI-generated.
 
+A required fact has one of two **scopes**, resolved 2026-09-19 (Q4):
+
+| Scope | Example | Answered |
+|---|---|---|
+| `COMPANY` | Is investing in assets a main business activity? | once per entity |
+| `LINE` | Which risk does this derivative manage? (**B72**) | once per line |
+
+Company-scoped facts settle every affected line at once. Line-scoped facts
+cannot: two derivative lines in one statement may manage different risks, so
+each is asked separately.
+
 ```
 rule matches the account pattern
         │
@@ -169,8 +180,11 @@ for each line:
   3. SMBA-dependent rules       → MATCH | NEEDS_FACT
   4. investing rules            → MATCH | NO_MATCH
   5. financing rules            → MATCH | NO_MATCH
-  6. linked-item rules (FX, derivatives, impairment) → inherit category of the
-                                                        underlying item ⚠ VERIFY
+  6. linked-item rules → inherit the category of the underlying item or risk
+        · FX differences        → IFRS 18 B65
+        · derivatives / hedges  → IFRS 18 B72 (line-scoped NEEDS_FACT)
+        · fallback where inheritance needs grossing up or undue cost
+          or effort            → OPERATING
   7. ambiguity detection        → send to AI advisor (Layer 2)
   8. residual                   → OPERATING, method = RESIDUAL_DEFAULT
 ```
@@ -402,9 +416,9 @@ IFRS 18 operating profit   = 100 - 70      = 30
 Δ PBT                      =   0     ← must be exactly zero
 ```
 Spec §30 also mentions an expected transition "30 → 20". That does not follow
-from the four figures given; the derivation above yields 40 → 30. **Flagged for
-clarification** — see Q6. The assertion that Δ PBT is exactly 0 holds regardless
-and is the more important invariant.
+from the four figures given. **Resolved 2026-09-19 (Q6): the §30 figure is
+treated as approximate and T2 asserts 40 → 30.** The assertion that Δ PBT is
+exactly 0 holds under every reading and is the more important invariant.
 
 ### T3 — SMBA flips the answer
 Entity with `INVESTING_IN_ASSETS = true`: interest income stays operating.
@@ -454,3 +468,61 @@ fails at load; the engine refuses to start rather than picking one.
 ### T12 — multiple periods
 Current and comparative columns are separate `financial_statements`; classifying
 one does not alter the other; impact is computed per period.
+
+### T13 — aggregate decomposition does not double count (Q5)
+
+A 영업외수익 caption of 100 is decomposed into three children: 이자수익 40,
+매출채권 외환차익 35, 유형자산처분이익 25.
+
+```
+parent.decomposition_status == DECOMPOSED
+parent contributes 0 to every category sum
+Σ(children) == parent.amount == 100          ← else extraction reconciliation fails
+이자수익           → INVESTING   (cash and cash equivalents)
+매출채권 외환차익   → OPERATING   (B65: follows the trade receivable)
+유형자산처분이익   → OPERATING   (residual)
+Δ operating profit from this caption == +60, not 0
+```
+
+The final line is the point of the whole feature: left aggregated, this caption
+would have contributed nothing to the operating-profit bridge.
+
+### T14 — derivative classification is line-scoped (Q4, B72)
+
+Two derivative lines in one statement:
+
+```
+FX forward hedging a foreign-currency borrowing   → answer: FINANCING risk → FINANCING
+FX forward hedging forecast export sales          → answer: OPERATING risk → OPERATING
+```
+
+Assertions: two separate `review_questions` rows exist with `scope = LINE`;
+answering one does not resolve the other; both resulting classifications carry
+`rule_id = IFRS18-DERIV-001` and cite B72. A third line answered
+"grossing up / undue cost or effort" resolves to `OPERATING` with
+`rule_id = IFRS18-DERIV-002`.
+
+### T15 — IFRS 18.73 entity is blocked, not guessed (Q3)
+
+`PROVIDING_FINANCING_TO_CUSTOMERS` confirmed `true`:
+
+```
+can_finalize == false
+blocking_reasons contains { code: "OUT_OF_VALIDATED_SCOPE", reference: "IFRS 18.73" }
+POST /finalize → 422
+```
+
+No statement is produced. The failure names the standard rather than reporting a
+generic error.
+
+### T16 — equity-method results ignore main business activity (F3)
+
+지분법이익 of 55 with `INVESTING_IN_ASSETS` confirmed `true`:
+
+```
+final_ifrs18_category == INVESTING      ← NOT moved to operating by the SMBA rule
+rule_id == "IFRS18-INVESTING-001"
+```
+
+This is a regression test for the error found during source verification on
+2026-09-19; the pre-verification draft rule set would have returned `OPERATING`.

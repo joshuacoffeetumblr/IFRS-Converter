@@ -12,15 +12,15 @@ specific implementation task.
 |---|---|---|---|
 | Q1 | Sixth category (`OTHER_RELEVANT_CATEGORY`) | ✅ **RESOLVED** 2026-09-19 | Redefined as `UNCLASSIFIED`, a technical non-IFRS state |
 | Q2 | Definition of "before" operating profit | ✅ **RESOLVED** 2026-09-19 | **As reported**; any unattributed difference shown explicitly in the waterfall |
-| Q3 | Is `PROFIT_BEFORE_FINANCING_AND_INCOME_TAXES` always presented? | 🔬 researched | **IFRS 18.73** — a *prohibition*, narrowly scoped; handling decision open |
-| Q4 | Derivatives and hedging | 🔬 researched | **IFRS 18 B72** — rule exists; `NEEDS_FACT` vs blanket review open |
-| Q5 | Korean statement conventions (금융수익/비용 등) | 🔬 partly researched | 지분법손익 resolved (**always investing**); aggregate-caption handling open |
-| Q6 | Spec §30's "30 → 20" expectation | ⛔ **OPEN** — needs your intent | — |
+| Q3 | Is `PROFIT_BEFORE_FINANCING_AND_INCOME_TAXES` always presented? | ✅ **RESOLVED** 2026-09-19 | **IFRS 18.73** = prohibition. MVP blocks finalization if the entity is caught by it (out of validated scope) |
+| Q4 | Derivatives and hedging | ✅ **RESOLVED** 2026-09-19 | **IFRS 18 B72** implemented as a **line-scoped `NEEDS_FACT` rule** |
+| Q5 | Korean statement conventions (금융수익/비용 등) | ✅ **RESOLVED** 2026-09-19 | 지분법손익 always investing; **note-based decomposition UI** for aggregate captions |
+| Q6 | Spec §30's "30 → 20" expectation | ✅ **RESOLVED** 2026-09-19 | Treated as approximate; **T2 asserts 40 → 30** |
 | Q7 | Scope: P&L only? | ✅ **RESOLVED** 2026-09-19 | P&L only, implied by MVP scope approval ("손익계산서만"). MPM and OCI restructuring are stated limitations. |
 
-Phases 1–4 are unblocked. Q3–Q6 must be settled before `classification_rules`
-seed data is written in Phase 5. Paragraph-level citations are recorded in
-`07-ifrs18-source-verification.md`.
+**All questions resolved as of 2026-09-19. Phase 5 rule seeding is unblocked.**
+Paragraph-level citations are recorded in `07-ifrs18-source-verification.md`;
+note the `VERIFIED-SECONDARY` caveat and the remaining items listed there.
 
 ---
 
@@ -77,7 +77,7 @@ identifiable reported operating subtotal.
 
 ---
 
-## Q3 — Is `PROFIT_BEFORE_FINANCING_AND_INCOME_TAXES` always presented? — 🔬 RESEARCHED
+## Q3 — Is `PROFIT_BEFORE_FINANCING_AND_INCOME_TAXES` always presented? — ✅ RESOLVED
 
 IFRS 18 requires the subtotal "profit or loss before financing and income taxes",
 but I understand there is an **exception for entities that classify financing- or
@@ -108,14 +108,22 @@ subtotal under **paragraph 24**, but must **not** label it in a way implying
 financing amounts are excluded ("profit before financing" is misleading and not
 permitted).
 
-**Remaining decision:** the approved MVP scope excludes banks, insurers and
-securities firms, so the paragraph 73 path is never exercised on a valid MVP
-input. What should happen if a user nonetheless confirms
-`PROVIDING_FINANCING_TO_CUSTOMERS = true`?
+**DECISION (2026-09-19): block as out of validated scope.**
+
+`PROFIT_BEFORE_FINANCING_AND_INCOME_TAXES` is always presented in the MVP,
+alongside operating profit, **including when the two are equal**. If a user
+confirms `PROVIDING_FINANCING_TO_CUSTOMERS = true`, the project is blocked from
+finalization with an explicit "outside validated scope" reason naming IFRS 18.73
+— rather than silently applying a paragraph 73 branch whose rule set has not
+been validated for financial institutions.
+
+Rationale: producing a statement that presents a subtotal the standard prohibits
+would be a defect on the face of the output. Refusing to produce it is the
+honest failure mode; guessing is not.
 
 ---
 
-## Q4 — Derivatives and hedging — 🔬 RESEARCHED
+## Q4 — Derivatives and hedging — ✅ RESOLVED
 
 Classification of gains and losses on derivatives depends on whether the
 derivative is used for risk management, whether hedge accounting is designated,
@@ -149,12 +157,24 @@ deterministically to the answer, with an explicit "grossing up / undue cost or
 effort" option that routes to operating. The decision becomes auditable and
 cites B72, instead of being an unexplained human choice.
 
-**Remaining decision:** adopt the B72 `NEEDS_FACT` rule, or keep the simpler
-blanket human review for MVP?
+**DECISION (2026-09-19): adopt the B72 `NEEDS_FACT` rule.**
+
+`IFRS18-DERIV-001` detects a derivative or designated hedging instrument line and
+raises a structured question asking which risk the instrument manages, with an
+explicit option for "applying B72 would require grossing up, or involve undue
+cost or effort" that routes to `OPERATING` under `IFRS18-DERIV-002`. The answer
+drives the category deterministically, and the audit trail cites B72 rather than
+recording an unexplained human choice.
+
+**Schema consequence.** Until now `NEEDS_FACT` assumed a *company-level* fact (a
+specified main business activity). A derivative's managed risk is a **line-level**
+fact: two derivative lines in one statement can manage different risks. So
+`review_questions` gains a `scope` (`COMPANY` / `LINE`) and a nullable `line_id`.
+See `02-erd.md`.
 
 ---
 
-## Q5 — Korean statement conventions — 🔬 PARTIALLY RESEARCHED, decision open
+## Q5 — Korean statement conventions — ✅ RESOLVED
 
 Points requiring domain confirmation before the normalization dictionary is
 seeded:
@@ -238,9 +258,32 @@ This is not a cosmetic choice. Under IFRS 18 the residual rule (F2) and the FX
 rule (F5) mean an undecomposed 영업외수익 bucket can hide a real operating-profit
 change — which is the number the entire product exists to explain.
 
-Options are put to the user in the accompanying discussion.
+**DECISION (2026-09-19): support note-based decomposition.**
 
-## Q6 — still open
+An aggregate caption with no detail lines is marked `requires_decomposition`. The
+review UI lets the user enter its components from the notes; each component
+becomes a **child line** with its own provenance pointing at the note reference,
+and is classified individually. The parent aggregate is then excluded from
+summation exactly as a subtotal is, so nothing is double counted.
 
-Requires the user's intent; no external source can resolve it. See the Q6
-section above.
+Decomposition is **offered, not forced**: a user who cannot decompose may accept
+a single classification for the whole caption, which records an explicit
+limitation in the audit trail and surfaces a warning on the impact screen stating
+that the operating-profit effect may be understated. Blocking finalization
+outright was rejected — it would strand users whose notes are thin — but the
+limitation must be visible, not buried.
+
+**Schema consequence.** `financial_statement_lines` gains `parent_line_id` and
+`decomposition_status`. See `02-erd.md`.
+
+## Q6 — Spec §30's "30 → 20" expectation — ✅ RESOLVED
+
+**DECISION (2026-09-19): treat the figure as approximate; T2 asserts 40 → 30.**
+
+The four figures in spec §30 (Revenue 100, Operating expense −70, Interest income
+10, Finance cost −5) give an IFRS 18 operating profit of 30, which §30 itself
+states, and reclassifying interest income out of operating gives 40 → 30. No
+reclassification among those lines produces 20.
+
+T2 therefore asserts 40 → 30, together with the invariant that ΔPBT is exactly
+zero — which holds under every reading and is the more important assertion.

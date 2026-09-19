@@ -84,7 +84,7 @@ Multi-currency groups are out of scope.
 |---|---|---|
 | Scanned/OCR PDFs | Separate problem; high silent-error risk | §33 |
 | DART / XBRL ingestion | §3 lists as future; §33 excludes | §3, §33 |
-| Banks, insurers, securities firms | Lowest rule confidence (Q3) | §33 |
+| Banks, insurers, securities firms | Lowest rule confidence; IFRS 18.73 prohibits a subtotal we present, so such projects are **blocked at finalization** (Q3) | §33 |
 | MPM (management-defined performance measure) disclosure | Prominent IFRS 18 requirement, deliberately deferred — see Q7 | — |
 | OCI restructuring, aggregation/disaggregation requirements | P&L only — see Q7 | — |
 | Balance sheet / cash flow restructuring | P&L only | §2 |
@@ -109,8 +109,8 @@ waiting for PDF ingestion.
 | **3a** | XLSX ingest with provenance + extraction reconciliation | A real statement extracts and its own subtotals reconcile |
 | **3b** | CSV ingest | |
 | **3c** | PDF ingest (text-based only) | *Cuttable without affecting §34* |
-| **4** | Normalization dictionary (Korean + English), synonyms, fuzzy matching | ≥90% of lines on the fixture statement normalize without AI |
-| **5** | **Rule engine, rule seed data with verified citations, `NEEDS_FACT`, AI advisor** | **T1–T12 pass**; an accountant can read `GET /api/rules` and agree |
+| **4** | Normalization dictionary (Korean + English), synonyms, fuzzy matching, **note-based decomposition of aggregate captions (Q5)** | ≥90% of lines on the fixture statement normalize without AI; an aggregate 영업외수익 can be decomposed into classified child lines that sum back to the parent |
+| **5** | **Rule engine, rule seed data with verified citations, company- and line-scoped `NEEDS_FACT` (Q4), AI advisor** | **T1–T12 pass**; an accountant can read `GET /api/rules` and agree |
 | **6** | Reconstruction, subtotals, reconciliation gate | Total invariance holds exactly on every fixture |
 | **7** | Impact: KPIs, waterfall, drivers | Waterfall sums exactly to the operating-profit delta |
 | **8** | Excel export (+ PDF if time) | Export equals on-screen figures byte-for-byte |
@@ -142,13 +142,13 @@ If that test passes, the MVP is done.
 ## 6. Outstanding inputs needed
 
 1. ~~Approve or amend this scope~~ — ✅ approved 2026-09-19.
-2. **Answer Q3–Q6** in `06-open-accounting-questions.md` before Phase 5.
-3. **Confirm access to authoritative IFRS 18 material** (spec §25). I can draft
-   the rule set from my understanding of the standard, but every
-   `source_reference` must be verified against the IFRS Foundation's issued text
-   before rules are seeded. Tell me whether you have that access, or whether
-   rules should ship marked `⚠ UNVERIFIED` and visibly flagged in-product until
-   verified.
+2. ~~Answer Q3–Q6~~ — ✅ all resolved 2026-09-19.
+3. **Confirm access to the issued text of IFRS 18** (spec §25). Citations were
+   verified on 2026-09-19 against IFRS Foundation and Big 4 sources and are
+   recorded in `07-ifrs18-source-verification.md`, but the environment could not
+   retrieve the primary pages, so every rule is marked `VERIFIED-SECONDARY`.
+   Five items remain open there — two of them affect rules that fire on ordinary
+   non-financial corporates.
 4. **Provide one real anonymised Korean income statement** as the fixture. Every
    phase's exit criterion above is defined against a real statement; a synthetic
    one would validate the code but not the dictionary or the rule set.

@@ -138,6 +138,8 @@ extraction run rather than mutating history.
 | sign_normalization | text NOT NULL | how raw_value became amount; auditable |
 | is_subtotal | boolean NOT NULL DEFAULT false | **excluded from all summation** |
 | subtotal_kind | text | `GROSS_PROFIT` / `REPORTED_OPERATING_PROFIT` / `PBT` / … |
+| parent_line_id | uuid FK → financial_statement_lines | set on a component produced by decomposing an aggregate (Q5) |
+| decomposition_status | text NOT NULL DEFAULT `NOT_REQUIRED` | `NOT_REQUIRED` / `REQUIRED` / `DECOMPOSED` / `ACCEPTED_AGGREGATE` |
 | normalized_account_id | uuid FK → normalized_accounts | nullable until Step 3 |
 | normalization_method | text | `EXACT` / `SYNONYM` / `FUZZY` / `AI` / `MANUAL` |
 | normalization_score | numeric(5,4) | |
@@ -156,6 +158,27 @@ for PDF:
 
 Constraint: `is_subtotal = true` ⇒ `normalized_account_id IS NULL` and no
 classification row may reference the line.
+
+**Decomposition (Q5, resolved 2026-09-19).** Korean statements frequently present
+only an aggregate caption (영업외수익, 금융수익). Because IFRS 18 makes operating
+the residual category, and because B65 sends foreign exchange differences to the
+category of the item that produced them, an undecomposed caption can conceal a
+real operating-profit effect.
+
+- A caption the engine cannot classify as a whole is marked
+  `decomposition_status = REQUIRED`.
+- The user enters its components from the notes. Each becomes a **child line**
+  with `parent_line_id` set and its own `source_locator` pointing at the note,
+  and the parent moves to `DECOMPOSED`.
+- **A parent with `decomposition_status = DECOMPOSED` is excluded from all
+  summation**, exactly like a subtotal, so the components are counted once.
+  A `CHECK` enforces that a `DECOMPOSED` parent carries no classification row.
+- A user who cannot decompose may set `ACCEPTED_AGGREGATE`. The caption is then
+  classified as a single line, the limitation is written to the audit trail, and
+  the impact response carries a warning that the operating-profit effect may be
+  understated. This is a visible, recorded limitation — never a silent one.
+- Σ(children) must equal the parent's `amount`; a mismatch is an extraction-level
+  reconciliation failure, not a rounding allowance.
 
 ### `normalized_accounts`
 The canonical account dictionary (spec §4 Step 3). Seeded, not user-specific.
@@ -286,10 +309,12 @@ state.
 |---|---|---|
 | id | uuid PK | |
 | project_id | uuid FK → projects | |
-| question_key | text NOT NULL | stable key, e.g. `SMBA_INVESTING_IN_ASSETS` |
+| scope | text NOT NULL | `COMPANY` / `LINE` — see below (Q4) |
+| line_id | uuid FK → financial_statement_lines | required when `scope = LINE`, else null |
+| question_key | text NOT NULL | stable key, e.g. `SMBA_INVESTING_IN_ASSETS`, `DERIVATIVE_RISK_MANAGED` |
 | question_text_ko / _en | text NOT NULL | |
 | raised_by_rule_id | text | which rule returned `NEEDS_FACT` |
-| answer | text | `YES` / `NO` / `NOT_SURE` |
+| answer | text | `YES` / `NO` / `NOT_SURE`, or an enum value for a choice question |
 | answered_by | uuid FK → users | |
 | answered_at | timestamptz | |
 | resulting_activity_id | uuid FK → business_activities | |
@@ -298,6 +323,19 @@ state.
 `NOT_SURE` is a real, persisted state (spec §5 offers it). It does not resolve
 the rule; affected lines stay in review and finalization stays blocked, with the
 reason shown.
+
+**Question scope (Q4, resolved 2026-09-19).** Specified main business activities
+are facts about the *entity*, so one answer settles every affected line
+(`scope = COMPANY`). The risk a derivative manages, which IFRS 18 **B72** needs
+in order to assign a category, is a fact about *that instrument* — two derivative
+lines in one statement can manage different risks — so it is asked per line
+(`scope = LINE`). `UNIQUE (project_id, question_key, line_id)` prevents asking
+the same question twice.
+
+A `LINE`-scoped derivative question offers the categories a risk can map to, plus
+an explicit **"would require grossing up, or involve undue cost or effort"**
+option that routes the line to `OPERATING` under `IFRS18-DERIV-002`. Either way
+the resulting classification cites B72.
 
 ### `user_reviews`
 Append-only record of each human decision (spec §8, §16).
