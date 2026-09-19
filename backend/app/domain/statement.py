@@ -75,6 +75,12 @@ class ClassifiedLine:
 
     line: ExtractedLine
     decision: ClassificationDecision
+    #: The canonical account the caption resolved to, where it resolved at all.
+    #: Carried here because some measures — revenue above all — are defined by
+    #: *which account* a line is, not by its category or the sign of its
+    #: amount. Inferring revenue from "positive and operating" would sweep in
+    #: disposal gains and foreign exchange, and quietly inflate every margin.
+    normalized_account_code: str | None = None
 
     @property
     def amount(self) -> Decimal:

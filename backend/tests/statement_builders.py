@@ -65,10 +65,12 @@ def classified(
     category: Ifrs18Category,
     *,
     resolved: bool = True,
+    account: str | None = None,
 ) -> ClassifiedLine:
     return ClassifiedLine(
         line=extracted,
         decision=decide(extracted.raw_label, category, resolved=resolved),
+        normalized_account_code=account,
     )
 
 

@@ -10,19 +10,31 @@ audit trail, how and why operating profit changes.
 
 ---
 
-## Status: Phase 6 — statement reconstruction and the reconciliation gate
+## Status: Phase 7 — impact analysis
 
-Phases 1–6 are complete: repository and tooling, the database schema,
+Phases 1–7 are complete: repository and tooling, the database schema,
 XLSX + CSV extraction with cell-level provenance and reconciliation against the
 source's own subtotals, account normalization against a catalog of 34 canonical
-accounts and 198 synonyms, the IFRS 18 classification engine, and statement reconstruction behind a
-reconciliation gate.
+accounts and 198 synonyms, the IFRS 18 classification engine, statement reconstruction behind a
+reconciliation gate, and impact analysis.
 
-Impact analysis — KPIs, the waterfall, the drivers — is Phase 7.
+Export (Phase 8) and the user interface (Phase 9) remain; the API and the
+frontend screens are not built yet.
 
-On the synthetic fixture the full chain runs end to end: operating profit moves
-₩120,000m → ₩126,000m while profit before tax and profit for the period do not
-move at all, and all seven reconciliation checks pass.
+On the synthetic fixture the full chain runs end to end:
+
+| | Before | After | Change |
+|---|---|---|---|
+| Revenue | 1,000,000 | 1,000,000 | 0 |
+| **Operating profit** | **120,000** | **126,000** | **+6,000 (+5.00%)** |
+| Operating margin | 12.00% | 12.60% | +60bp |
+| Profit before financing and income taxes | — | 136,000 | *new under IFRS 18* |
+| Profit before tax | 122,000 | 122,000 | **0** |
+| Profit for the period | 95,160 | 95,160 | **0** |
+
+The change comes entirely from decomposing 기타수익 and 기타비용 — a disposal
+gain and loss move into operating, and IFRS 18 B65 brings the FX on trade
+receivables with them. Left aggregated, the change would have read as zero.
 
 > **Citations are `VERIFIED_SECONDARY`.** Every rule names the IFRS 18
 > paragraph it implements, confirmed against IFRS Foundation and Big 4
@@ -102,9 +114,11 @@ Verified on 2026-09-19 against a live PostgreSQL 16 and both servers running:
 - The `audit_logs` append-only trigger rejects both UPDATE and DELETE
 - The landing page renders the §24 disclaimer **fetched from the API**, not a
   local copy
-- Backend: 821 tests pass, `ruff` clean, `mypy --strict` clean
+- Backend: 851 tests pass, `ruff` clean, `mypy --strict` clean
 - Total invariance is exact and unconfigurable: reclassification cannot change
   the sum of all income and expenses
+- The waterfall is derived from the same per-line movement the gate checks, so
+  it cannot disagree with the statement
 - 100% of detail lines normalize **without AI** on both the canonical fixture
   and a "messy" one whose captions appear nowhere in the catalog verbatim
   (Phase 4 target was 90%)

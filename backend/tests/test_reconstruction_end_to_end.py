@@ -26,6 +26,7 @@ from app.domain.enums import (
     SubtotalKey,
 )
 from app.domain.extraction import ExtractedStatement, reconcile_extraction
+from app.domain.impact import analyse
 from app.domain.normalization import normalize_statement
 from app.domain.rules import ClassifiableItem, EntityFacts
 from app.domain.statement import ClassifiedLine, reconstruct
@@ -121,7 +122,13 @@ def _classify(source: ExtractedStatement, *, answer_questions: bool) -> tuple[Cl
         )
         if answer_questions and decision.blocked_on_line_fact == "FX_UNDERLYING_ITEM":
             decision = _answer_fx_question(decision)
-        results.append(ClassifiedLine(line=normalized.line, decision=decision))
+        results.append(
+            ClassifiedLine(
+                line=normalized.line,
+                decision=decision,
+                normalized_account_code=normalized.code,
+            )
+        )
     return tuple(results)
 
 
@@ -262,3 +269,79 @@ def test_decomposed_parents_are_not_double_counted(
     assert "금융수익" not in labels
     assert {"이자수익", "매출채권 외환차익"} <= labels
     assert result.total_of_all_lines == Decimal("95160")
+
+
+# ---------------------------------------------------------------------------
+# Impact analysis on the same resolved statement (Phase 7)
+# ---------------------------------------------------------------------------
+
+
+def test_the_impact_headline_matches_the_statement(
+    resolved: tuple[ExtractedStatement, tuple[ClassifiedLine, ...]],
+) -> None:
+    decomposed, decisions = resolved
+    result = reconstruct(decomposed, decisions, facts=NON_FINANCIAL)
+
+    impact = analyse(decomposed, decisions, result)
+
+    headline = impact.headline
+    assert headline is not None
+    assert headline.before == Decimal("120000")
+    assert headline.after == Decimal("126000")
+    assert headline.change == Decimal("6000")
+    assert headline.change_pct == Decimal("5.0000")
+
+
+def test_the_waterfall_balances_on_a_real_statement(
+    resolved: tuple[ExtractedStatement, tuple[ClassifiedLine, ...]],
+) -> None:
+    decomposed, decisions = resolved
+    impact = analyse(decomposed, decisions, reconstruct(decomposed, decisions, facts=NON_FINANCIAL))
+
+    assert impact.comparable
+    assert impact.waterfall_balances
+
+
+def test_the_drivers_are_the_decomposed_items(
+    resolved: tuple[ExtractedStatement, tuple[ClassifiedLine, ...]],
+) -> None:
+    """Every driver came out of an aggregate caption.
+
+    That is the point of decomposition: left aggregated, none of these would
+    have appeared, and the operating-profit change would have read as zero.
+    """
+    decomposed, decisions = resolved
+    impact = analyse(decomposed, decisions, reconstruct(decomposed, decisions, facts=NON_FINANCIAL))
+
+    drivers = {r.label: r.impact_on_operating_profit for r in impact.top_reclassifications}
+    assert drivers == {
+        "유형자산처분이익": Decimal("12000"),
+        "유형자산처분손실": Decimal("-9000"),
+        "매출채권 외환차익": Decimal("3000"),
+    }
+
+
+def test_measures_that_must_not_move_report_zero(
+    resolved: tuple[ExtractedStatement, tuple[ClassifiedLine, ...]],
+) -> None:
+    """The user-visible proof that IFRS 18 changed presentation, not profit."""
+    decomposed, decisions = resolved
+    impact = analyse(decomposed, decisions, reconstruct(decomposed, decisions, facts=NON_FINANCIAL))
+
+    for key in ("REVENUE", "PROFIT_BEFORE_TAX", "PROFIT_FOR_THE_PERIOD"):
+        kpi = impact.kpi(key)
+        assert kpi is not None, key
+        assert kpi.change == Decimal(0), key
+
+
+def test_the_margin_moves_with_operating_profit_only(
+    resolved: tuple[ExtractedStatement, tuple[ClassifiedLine, ...]],
+) -> None:
+    decomposed, decisions = resolved
+    impact = analyse(decomposed, decisions, reconstruct(decomposed, decisions, facts=NON_FINANCIAL))
+
+    margin = impact.kpi("OPERATING_PROFIT_MARGIN")
+    assert margin is not None
+    assert margin.before == Decimal("12.0000")
+    assert margin.after == Decimal("12.6000")
+    assert margin.change_bps == Decimal("60.00")
