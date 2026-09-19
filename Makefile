@@ -58,8 +58,8 @@ e2e: ## Run Playwright end-to-end tests (requires the stack to be running)
 	cd $(FRONTEND) && npx playwright test
 
 .PHONY: seed
-seed: ## Load the account catalog into the database
-	cd $(BACKEND) && .venv/bin/python -m app.cli seed-accounts
+seed: ## Load the account catalog and IFRS 18 rule set into the database
+	cd $(BACKEND) && .venv/bin/python -m app.cli seed
 
 .PHONY: fixture
 fixture: ## Write the synthetic Korean statement fixtures to ./fixtures for inspection

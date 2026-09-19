@@ -9,15 +9,18 @@ reference it and an audit trail must stay readable (ERD §4.3).
 
 from __future__ import annotations
 
+import datetime as dt
 from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.data.catalog import load_catalog
+from app.data.rule_catalog import load_rules
 from app.domain.accounts import AccountDefinition, normalize_label
+from app.domain.classification import ClassificationRuleSpec
 from app.domain.enums import SynonymMatchType
-from app.models import AccountSynonym, NormalizedAccount
+from app.models import AccountSynonym, ClassificationRule, NormalizedAccount
 
 
 @dataclass(frozen=True, slots=True)
@@ -163,3 +166,123 @@ async def _seed_synonyms(
             removed += 1
 
     return created, removed
+
+
+# ---------------------------------------------------------------------------
+# Classification rules
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class RuleSeedResult:
+    version: str
+    created: int
+    updated: int
+    deactivated: int
+
+    @property
+    def changed(self) -> bool:
+        return bool(self.created or self.updated or self.deactivated)
+
+
+def _rule_differs(row: ClassificationRule, spec: ClassificationRuleSpec, version: str) -> bool:
+    outcome = spec.outcome
+    fact_true = spec.outcome_when_fact_true
+    fact_false = spec.outcome_when_fact_false
+    # For a fact-dependent rule the "false" branch is stored in the plain
+    # outcome columns, so the row shape is the same either way.
+    effective = fact_false or outcome
+    return (
+        row.version != version
+        or row.priority != spec.priority
+        or row.description != spec.description
+        or row.condition != spec.condition
+        or row.outcome_category != (effective.category.value if effective else None)
+        or row.fact_true_category != (fact_true.category.value if fact_true else None)
+        or row.undue_cost_category
+        != (spec.undue_cost_outcome.category.value if spec.undue_cost_outcome else None)
+        or row.requires_line_fact != spec.requires_line_fact
+        or row.requires_human_review != spec.requires_human_review
+        or row.is_residual != spec.is_residual
+        or row.inherits_category != spec.inherits_category
+        or row.source_reference != spec.source.reference
+        or row.verification_status != spec.source.verification_status.value
+        or not row.is_active
+    )
+
+
+def _apply_rule(row: ClassificationRule, spec: ClassificationRuleSpec, version: str) -> None:
+    effective = spec.outcome_when_fact_false or spec.outcome
+    fact_true = spec.outcome_when_fact_true
+
+    row.version = version
+    row.priority = spec.priority
+    row.description = spec.description
+    row.condition = spec.condition
+    row.outcome_category = effective.category if effective else None
+    row.outcome_subcategory = effective.subcategory if effective else None
+    row.fact_true_category = fact_true.category if fact_true else None
+    row.fact_true_subcategory = fact_true.subcategory if fact_true else None
+    row.undue_cost_category = spec.undue_cost_outcome.category if spec.undue_cost_outcome else None
+    row.inherits_category = spec.inherits_category
+    row.requires_activity_fact = spec.requires_activity_fact
+    row.requires_line_fact = spec.requires_line_fact
+    row.requires_human_review = spec.requires_human_review
+    row.is_residual = spec.is_residual
+    row.source_type = spec.source.type
+    row.source_reference = spec.source.reference
+    row.source_url = spec.source.url
+    row.verification_status = spec.source.verification_status
+    row.verification_note = spec.source.note
+    row.confidence_ceiling = spec.confidence_ceiling
+    row.is_active = True
+
+
+async def seed_rules(session: AsyncSession) -> RuleSeedResult:
+    """Bring ``classification_rules`` in line with the shipped rule set.
+
+    Like the account catalog, nothing is deleted: a rule that leaves the rule
+    set is deactivated, because ``ifrs18_classifications.rule_id`` records which
+    rule decided a figure and that record must stay explicable (spec §8).
+    """
+    version, standard, specs = load_rules()
+
+    existing = {
+        row.rule_id: row
+        for row in (await session.execute(select(ClassificationRule))).scalars().all()
+    }
+
+    created = updated = 0
+    for spec in specs:
+        row = existing.get(spec.rule_id)
+        if row is None:
+            row = ClassificationRule(
+                rule_id=spec.rule_id,
+                version=version,
+                priority=spec.priority,
+                description=spec.description,
+                condition=spec.condition,
+                source_type=spec.source.type,
+                source_reference=spec.source.reference,
+                effective_date=dt.date.fromisoformat(standard.issued),
+            )
+            _apply_rule(row, spec, version)
+            session.add(row)
+            created += 1
+        elif _rule_differs(row, spec, version):
+            _apply_rule(row, spec, version)
+            updated += 1
+
+    await session.flush()
+
+    shipped = {spec.rule_id for spec in specs}
+    deactivated = 0
+    for rule_id, row in existing.items():
+        if rule_id not in shipped and row.is_active:
+            row.is_active = False
+            deactivated += 1
+
+    await session.flush()
+    return RuleSeedResult(
+        version=version, created=created, updated=updated, deactivated=deactivated
+    )

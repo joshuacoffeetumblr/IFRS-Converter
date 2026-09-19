@@ -18,11 +18,22 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 #: Explicit naming convention so Alembic autogenerate produces stable,
 #: reversible migration names for constraints and indexes.
+#:
+#: Names are kept short deliberately. SQLAlchemy truncates any identifier over
+#: 63 characters and appends a hash to keep it unique, so the object is created
+#: and enforced — but under a name nothing else computes. A hand-written
+#: migration that drops it by name then fails, and a check that looks it up
+#: finds nothing. Because enum changes require hand-written migrations here
+#: (Alembic does not diff CheckConstraints), predictable names matter.
+#:
+#: The foreign-key template omits the referred table: a column references
+#: exactly one table, so including it adds length without adding uniqueness.
+#: `tests/test_identifier_lengths.py` fails on anything still too long.
 NAMING_CONVENTION = {
     "ix": "ix_%(column_0_label)s",
     "uq": "uq_%(table_name)s_%(column_0_name)s",
     "ck": "ck_%(table_name)s_%(constraint_name)s",
-    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s",
     "pk": "pk_%(table_name)s",
 }
 

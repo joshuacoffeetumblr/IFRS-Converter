@@ -452,6 +452,18 @@ Rules:
    naming exactly which values are missing or stale. Migrations for enum
    changes are written **by hand**.
 
+0b. **Identifier names are kept short — found 2026-09-19.** SQLAlchemy
+   truncates any identifier over 63 characters and appends a hash to keep it
+   unique. The constraint is still created and enforced, so nothing looks
+   broken; it simply no longer answers to the name the application computes.
+   Combined with decision 0 above — enum migrations are hand-written, and
+   reference constraints by name — that is a live hazard, not a cosmetic one.
+
+   The foreign-key template was shortened to `fk_<table>_<column>` (the
+   referred table adds length without adding uniqueness), one over-long CHECK
+   was renamed, and `tests/test_identifier_lengths.py` now fails on anything
+   past the limit.
+
 1. **`text` + `CHECK` instead of PostgreSQL `ENUM`.** Spec §9 requires the
    classification taxonomy to be extensible. Altering a PG enum is awkward inside
    a transaction and painful to roll back; a `CHECK` constraint changes with a

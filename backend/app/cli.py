@@ -10,7 +10,7 @@ import sys
 
 from app.core.logging import configure_logging, get_logger
 from app.db.session import dispose_engine, get_session_factory
-from app.services.seeding import seed_accounts
+from app.services.seeding import seed_accounts, seed_rules
 
 log = get_logger(__name__)
 
@@ -34,11 +34,39 @@ async def _seed_accounts() -> int:
         f"{result.deactivated} deactivated, {result.synonyms_created} synonyms added, "
         f"{result.synonyms_removed} synonyms removed"
     )
+    return 0
+
+
+async def _seed_rules() -> int:
+    async with get_session_factory()() as session:
+        result = await seed_rules(session)
+        await session.commit()
+
+    log.info(
+        "rules_seeded",
+        version=result.version,
+        created=result.created,
+        updated=result.updated,
+        deactivated=result.deactivated,
+    )
+    print(
+        f"rule set {result.version}: {result.created} created, {result.updated} updated, "
+        f"{result.deactivated} deactivated"
+    )
     await dispose_engine()
     return 0
 
 
-COMMANDS = {"seed-accounts": _seed_accounts}
+async def _seed_all() -> int:
+    await _seed_accounts()
+    return await _seed_rules()
+
+
+COMMANDS = {
+    "seed-accounts": _seed_accounts,
+    "seed-rules": _seed_rules,
+    "seed": _seed_all,
+}
 
 
 def main(argv: list[str]) -> int:

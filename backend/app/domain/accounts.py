@@ -236,7 +236,53 @@ class AccountDictionary:
                 code, NormalizationMethod.SYNONYM, Decimal(1), ambiguous=self.is_ambiguous(code)
             )
 
+        qualified = self._qualified(key)
+        if qualified is not None:
+            return qualified
+
         return self._fuzzy(key)
+
+    def _qualified(self, key: str) -> NormalizationResult | None:
+        """Match a qualified caption by its head noun.
+
+        Korean compounds put the qualifier first and the head noun last, so the
+        account type is the **suffix**: 매출채권 외환차익 is a 외환차익 (FX gain)
+        arising on trade receivables, and 차입금 이자비용 is an 이자비용.
+
+        The **longest** matching suffix wins, and that is not a refinement but
+        a requirement: 수익 is a surface form of REVENUE, so a shortest-match
+        rule would read 이자수익 as revenue. Taking the longest suffix reads it
+        as 이자수익, which is what it is.
+
+        Reported as a fuzzy match so it carries ``requires_human_review``: the
+        head noun identifies the account type, but a qualifier can still carry
+        meaning the reviewer should confirm.
+        """
+        matches = [
+            (form, code)
+            for form, code in self._synonyms.items()
+            # A one-character suffix is noise, and an exact match was already
+            # handled above.
+            if len(form) >= 2 and len(form) < len(key) and key.endswith(form)
+        ]
+        if not matches:
+            return None
+
+        longest = max(len(form) for form, _ in matches)
+        winners = {code for form, code in matches if len(form) == longest}
+        if len(winners) != 1:
+            # Two accounts share the same head noun; choosing would be a guess.
+            return None
+
+        form, code = next((f, c) for f, c in matches if len(f) == longest)
+        coverage = _as_decimal(len(form) / len(key))
+        return NormalizationResult(
+            code,
+            NormalizationMethod.FUZZY,
+            coverage,
+            candidates=(NormalizationCandidate(code, coverage, form),),
+            ambiguous=self.is_ambiguous(code),
+        )
 
     def _fuzzy(self, key: str) -> NormalizationResult:
         scored: list[NormalizationCandidate] = []

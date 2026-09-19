@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import datetime as dt
+
 import pytest_asyncio
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.data.catalog import load_catalog
-from app.models import AccountSynonym, NormalizedAccount
-from app.services.seeding import seed_accounts
+from app.data.rule_catalog import load_rules
+from app.domain.enums import ActivityType, Ifrs18Category, RuleVerificationStatus
+from app.models import AccountSynonym, ClassificationRule, NormalizedAccount
+from app.services.seeding import seed_accounts, seed_rules
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -138,3 +142,115 @@ async def test_changed_label_is_updated_in_place(db_session: AsyncSession) -> No
     assert result.updated == 1
     await db_session.refresh(revenue)
     assert revenue.label_en == "Revenue"
+
+
+# ---------------------------------------------------------------------------
+# Classification rules
+# ---------------------------------------------------------------------------
+
+
+@pytest_asyncio.fixture
+async def empty_rules(db_session: AsyncSession) -> None:
+    await db_session.execute(delete(ClassificationRule))
+    await db_session.flush()
+
+
+async def test_rules_are_seeded(db_session: AsyncSession, empty_rules: None) -> None:
+    _, _, specs = load_rules()
+
+    result = await seed_rules(db_session)
+
+    assert result.created == len(specs)
+    count = (
+        await db_session.execute(select(func.count()).select_from(ClassificationRule))
+    ).scalar_one()
+    assert count == len(specs)
+
+
+async def test_rule_seeding_is_idempotent(db_session: AsyncSession, empty_rules: None) -> None:
+    await seed_rules(db_session)
+
+    second = await seed_rules(db_session)
+
+    assert not second.changed
+
+
+async def test_fact_dependent_rule_stores_both_outcomes(
+    db_session: AsyncSession, empty_rules: None
+) -> None:
+    """One reviewable row, not a pair that must be kept in step by hand."""
+    await seed_rules(db_session)
+
+    row = (
+        await db_session.execute(
+            select(ClassificationRule).where(ClassificationRule.rule_id == "IFRS18-INVESTING-002")
+        )
+    ).scalar_one()
+
+    assert row.requires_activity_fact == ActivityType.INVESTING_IN_ASSETS
+    assert row.outcome_category == Ifrs18Category.INVESTING
+    assert row.fact_true_category == Ifrs18Category.OPERATING
+
+
+async def test_line_fact_rule_records_the_undue_cost_landing(
+    db_session: AsyncSession, empty_rules: None
+) -> None:
+    """B65 and B72 both fall back to operating for undue cost or effort."""
+    await seed_rules(db_session)
+
+    row = (
+        await db_session.execute(
+            select(ClassificationRule).where(ClassificationRule.rule_id == "IFRS18-DERIV-001")
+        )
+    ).scalar_one()
+
+    assert row.requires_line_fact == "DERIVATIVE_RISK_MANAGED"
+    assert row.inherits_category
+    assert row.undue_cost_category == Ifrs18Category.OPERATING
+    assert "B72" in row.source_reference
+
+
+async def test_citations_and_verification_status_reach_the_database(
+    db_session: AsyncSession, empty_rules: None
+) -> None:
+    """Spec §25: the rule's basis must be queryable, not just in a file."""
+    await seed_rules(db_session)
+
+    rows = (await db_session.execute(select(ClassificationRule))).scalars().all()
+
+    for row in rows:
+        assert row.source_reference, row.rule_id
+        assert row.verification_status == RuleVerificationStatus.VERIFIED_SECONDARY, row.rule_id
+
+
+async def test_rule_removed_from_the_set_is_deactivated_not_deleted(
+    db_session: AsyncSession, empty_rules: None
+) -> None:
+    """ifrs18_classifications.rule_id records which rule decided a figure."""
+    await seed_rules(db_session)
+    db_session.add(
+        ClassificationRule(
+            rule_id="IFRS18-RETIRED-001",
+            version="old",
+            priority=5000,
+            description="retired",
+            condition={"field": {"name": "statement_section", "op": "eq", "value": "PL"}},
+            outcome_category=Ifrs18Category.OPERATING,
+            source_type="OTHER",
+            source_reference="retired",
+            effective_date=dt.date(2024, 4, 9),
+            is_active=True,
+        )
+    )
+    await db_session.flush()
+
+    result = await seed_rules(db_session)
+
+    assert result.deactivated == 1
+    retired = (
+        await db_session.execute(
+            select(ClassificationRule).where(ClassificationRule.rule_id == "IFRS18-RETIRED-001")
+        )
+    ).scalar_one()
+    assert retired is not None
+    assert not retired.is_active

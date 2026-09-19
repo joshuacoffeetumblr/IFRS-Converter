@@ -110,7 +110,7 @@ waiting for PDF ingestion.
 | **3b** | CSV ingest | ✅ done 2026-09-19 — shares one pipeline with XLSX; Korean encodings (CP949/EUC-KR/BOM) handled |
 | **3c** | PDF ingest (text-based only) | *Cuttable without affecting §34* |
 | **4** | Normalization dictionary (Korean + English), synonyms, fuzzy matching, **note-based decomposition of aggregate captions (Q5)** | ✅ done 2026-09-19 — 100% without AI on both the canonical and the messy fixture; decomposition refuses components that do not sum to the caption |
-| **5** | **Rule engine, rule seed data with verified citations, company- and line-scoped `NEEDS_FACT` (Q4), AI advisor** | **T1–T12 pass**; an accountant can read `GET /api/rules` and agree |
+| **5** | **Rule engine, rule seed data with verified citations, company- and line-scoped `NEEDS_FACT` (Q4), AI advisor** | ✅ done 2026-09-19 — 10 cited rules, all `VERIFIED_SECONDARY`; the two with unconfirmed conditions force human review |
 | **6** | Reconstruction, subtotals, reconciliation gate | Total invariance holds exactly on every fixture |
 | **7** | Impact: KPIs, waterfall, drivers | Waterfall sums exactly to the operating-profit delta |
 | **8** | Excel export (+ PDF if time) | Export equals on-screen figures byte-for-byte |

@@ -209,3 +209,93 @@ def test_fuzzy_accepts_a_clear_winner() -> None:
 def test_empty_label_does_not_match(dictionary: AccountDictionary) -> None:
     assert not dictionary.match("").matched
     assert not dictionary.match("   ").matched
+
+
+# ---------------------------------------------------------------------------
+# Qualified captions: Korean puts the account type last
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def qualified_dictionary() -> AccountDictionary:
+    return AccountDictionary(
+        (
+            AccountDefinition(
+                code="REVENUE",
+                label_ko="매출액",
+                label_en="Revenue",
+                synonyms_ko=("수익",),
+            ),
+            AccountDefinition(
+                code="INTEREST_INCOME", label_ko="이자수익", label_en="Interest income"
+            ),
+            AccountDefinition(code="FX_GAIN", label_ko="외환차익", label_en="FX gain"),
+            AccountDefinition(
+                code="INTEREST_EXPENSE", label_ko="이자비용", label_en="Interest expense"
+            ),
+        )
+    )
+
+
+@pytest.mark.parametrize(
+    ("printed", "expected"),
+    [
+        ("매출채권 외환차익", "FX_GAIN"),
+        ("외화예금 외환차익", "FX_GAIN"),
+        ("차입금 이자비용", "INTEREST_EXPENSE"),
+        ("사채 이자비용", "INTEREST_EXPENSE"),
+    ],
+)
+def test_qualified_captions_match_their_head_noun(
+    qualified_dictionary: AccountDictionary, printed: str, expected: str
+) -> None:
+    """매출채권 외환차익 is an FX gain arising on trade receivables."""
+    result = qualified_dictionary.match(printed)
+
+    assert result.code == expected
+    assert result.method is NormalizationMethod.FUZZY
+
+
+def test_longest_head_noun_wins(qualified_dictionary: AccountDictionary) -> None:
+    """수익 is a surface form of REVENUE, so shortest-match would be wrong.
+
+    이자수익 must read as interest income, not as revenue. This is the case that
+    makes longest-suffix a requirement rather than a refinement.
+    """
+    assert qualified_dictionary.match("이자수익").code == "INTEREST_INCOME"
+    assert qualified_dictionary.match("미수 이자수익").code == "INTEREST_INCOME"
+    assert qualified_dictionary.match("수익").code == "REVENUE"
+
+
+def test_qualified_matches_are_reported_as_inexact(
+    qualified_dictionary: AccountDictionary,
+) -> None:
+    """The head noun identifies the type; the qualifier may still matter.
+
+    Reporting FUZZY is what puts these in front of a reviewer, since the
+    normalization pipeline flags every fuzzy match for review.
+    """
+    result = qualified_dictionary.match("매출채권 외환차익")
+
+    assert result.method is NormalizationMethod.FUZZY
+    assert result.candidates
+
+
+def test_a_shared_head_noun_is_declined() -> None:
+    """Two accounts ending the same way cannot be told apart by the suffix."""
+    ambiguous = AccountDictionary(
+        (
+            AccountDefinition(code="A", label_ko="평가이익", label_en="Valuation gain"),
+            AccountDefinition(code="B", label_ko="처분이익", label_en="Disposal gain"),
+            AccountDefinition(code="C", label_ko="거래이익", label_en="Trading gain"),
+        )
+    )
+
+    assert not ambiguous.match("완전히새로운유형의이익").matched
+
+
+def test_a_one_character_suffix_is_not_a_match() -> None:
+    """Matching on a single character would be noise, not evidence."""
+    single = AccountDictionary((AccountDefinition(code="TAX", label_ko="세", label_en="Tax"),))
+
+    assert not single.match("법인세비용").matched

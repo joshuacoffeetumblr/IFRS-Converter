@@ -1,0 +1,315 @@
+{
+  "version": "2026.09.1",
+  "note": "IFRS 18 classification rules. Data rather than code (spec §25) so each carries its citation and can be reviewed without reading Python. Citations are VERIFIED_SECONDARY: confirmed against IFRS Foundation and Big 4 publications, not against the issued text of the standard, which this environment cannot reach. See docs/07-ifrs18-source-verification.md. Rules are evaluated in priority order, first match wins.",
+  "standard": {
+    "name": "IFRS 18 Presentation and Disclosure in Financial Statements",
+    "issued": "2024-04-09",
+    "mandatory_from": "2027-01-01",
+    "early_application_permitted": true
+  },
+  "rules": [
+    {
+      "rule_id": "IFRS18-TAX-001",
+      "priority": 100,
+      "description": "Income tax expense and income are classified in the income taxes category.",
+      "condition": {
+        "field": {
+          "name": "account_ancestors",
+          "op": "contains",
+          "value": "INCOME_TAX_EXPENSE"
+        }
+      },
+      "outcome": {
+        "category": "INCOME_TAX",
+        "subcategory": "INCOME_TAX_EXPENSE"
+      },
+      "source": {
+        "type": "IFRS_STANDARD",
+        "reference": "IFRS 18 paragraphs 52-68",
+        "verification_status": "VERIFIED_SECONDARY"
+      }
+    },
+    {
+      "rule_id": "IFRS18-DISC-001",
+      "priority": 110,
+      "description": "The results of discontinued operations are classified in the discontinued operations category.",
+      "condition": {
+        "field": {
+          "name": "account_ancestors",
+          "op": "contains",
+          "value": "DISCONTINUED_OPERATIONS_RESULT"
+        }
+      },
+      "outcome": {
+        "category": "DISCONTINUED_OPERATION",
+        "subcategory": "DISCONTINUED_RESULT"
+      },
+      "source": {
+        "type": "IFRS_STANDARD",
+        "reference": "IFRS 18 paragraphs 52-68; IFRS 5",
+        "verification_status": "VERIFIED_SECONDARY"
+      }
+    },
+    {
+      "rule_id": "IFRS18-INVESTING-001",
+      "priority": 200,
+      "description": "Income and expenses from investments in associates, joint ventures and unconsolidated subsidiaries accounted for using the equity method are classified in the investing category. This is unconditional: it applies regardless of the entity's business model, and there is no specified-main-business-activity exception.",
+      "condition": {
+        "any": [
+          {
+            "field": {
+              "name": "account_ancestors",
+              "op": "contains",
+              "value": "SHARE_OF_PROFIT_OF_ASSOCIATES"
+            }
+          },
+          {
+            "field": {
+              "name": "account_ancestors",
+              "op": "contains",
+              "value": "SHARE_OF_LOSS_OF_ASSOCIATES"
+            }
+          }
+        ]
+      },
+      "outcome": {
+        "category": "INVESTING",
+        "subcategory": null
+      },
+      "source": {
+        "type": "IFRS_STANDARD",
+        "reference": "IFRS 18 paragraphs 49-50",
+        "verification_status": "VERIFIED_SECONDARY",
+        "note": "docs/07 F3. An earlier draft of this rule set wrongly allowed a main business activity to move equity-method results to operating. It cannot."
+      }
+    },
+    {
+      "rule_id": "IFRS18-INVESTING-002",
+      "priority": 210,
+      "description": "Income and expenses from cash and cash equivalents are classified in the investing category, unless investing in assets is a main business activity, in which case they are operating.",
+      "condition": {
+        "any": [
+          {
+            "field": {
+              "name": "account_ancestors",
+              "op": "contains",
+              "value": "INTEREST_INCOME"
+            }
+          },
+          {
+            "field": {
+              "name": "account_ancestors",
+              "op": "contains",
+              "value": "DIVIDEND_INCOME"
+            }
+          }
+        ]
+      },
+      "requires_activity_fact": "INVESTING_IN_ASSETS",
+      "outcome_when_fact_false": {
+        "category": "INVESTING",
+        "subcategory": "INVESTING_INCOME"
+      },
+      "outcome_when_fact_true": {
+        "category": "OPERATING",
+        "subcategory": "OPERATING_OTHER"
+      },
+      "requires_human_review": true,
+      "source": {
+        "type": "IFRS_STANDARD",
+        "reference": "IFRS 18 paragraphs 49-50",
+        "verification_status": "VERIFIED_SECONDARY",
+        "note": "docs/07 remaining-verification item 4: whether this is genuinely conditional on INVESTING_IN_ASSETS, or on a different test, is unresolved. This rule fires on ordinary non-financial corporates, so every match is routed to human review until the condition is checked against the issued standard."
+      }
+    },
+    {
+      "rule_id": "IFRS18-INVESTING-003",
+      "priority": 220,
+      "description": "Income and expenses from other assets that generate a return individually and largely independently of the entity's other resources are classified in the investing category, unless investing in assets is a main business activity.",
+      "condition": {
+        "any": [
+          {
+            "field": {
+              "name": "account_ancestors",
+              "op": "contains",
+              "value": "RENTAL_INCOME"
+            }
+          },
+          {
+            "field": {
+              "name": "account_ancestors",
+              "op": "contains",
+              "value": "FVPL_FINANCIAL_ASSET_GAIN"
+            }
+          },
+          {
+            "field": {
+              "name": "account_ancestors",
+              "op": "contains",
+              "value": "FVPL_FINANCIAL_ASSET_LOSS"
+            }
+          }
+        ]
+      },
+      "requires_activity_fact": "INVESTING_IN_ASSETS",
+      "outcome_when_fact_false": {
+        "category": "INVESTING",
+        "subcategory": null
+      },
+      "outcome_when_fact_true": {
+        "category": "OPERATING",
+        "subcategory": "OPERATING_OTHER"
+      },
+      "source": {
+        "type": "IFRS_STANDARD",
+        "reference": "IFRS 18 paragraphs 49-50",
+        "verification_status": "VERIFIED_SECONDARY",
+        "note": "docs/07 F4."
+      }
+    },
+    {
+      "rule_id": "IFRS18-FINANCING-001",
+      "priority": 300,
+      "description": "Income and expenses on liabilities arising from transactions that involve only the raising of finance are classified in the financing category, unless providing financing to customers is a main business activity.",
+      "condition": {
+        "field": {
+          "name": "account_ancestors",
+          "op": "contains",
+          "value": "INTEREST_EXPENSE"
+        }
+      },
+      "requires_activity_fact": "PROVIDING_FINANCING_TO_CUSTOMERS",
+      "outcome_when_fact_false": {
+        "category": "FINANCING",
+        "subcategory": "FINANCING_EXPENSE"
+      },
+      "outcome_when_fact_true": {
+        "category": "OPERATING",
+        "subcategory": "OPERATING_OTHER"
+      },
+      "requires_human_review": true,
+      "source": {
+        "type": "IFRS_STANDARD",
+        "reference": "IFRS 18 paragraphs 52-68",
+        "verification_status": "VERIFIED_SECONDARY",
+        "note": "docs/07 remaining-verification item 5: whether interest on liabilities unrelated to customer financing is conditional on a specified main business activity at all is unresolved. This rule fires on ordinary non-financial corporates, so every match is routed to human review until the condition is checked against the issued standard."
+      }
+    },
+    {
+      "rule_id": "IFRS18-FX-001",
+      "priority": 400,
+      "description": "Foreign exchange differences are classified in the same category as the income and expenses from the items that gave rise to them. Where that would involve undue cost or effort, they are classified in the operating category. Which item gave rise to a difference cannot be read from an account name, so it is asked per line.",
+      "condition": {
+        "any": [
+          {
+            "field": {
+              "name": "account_ancestors",
+              "op": "contains",
+              "value": "FX_GAIN"
+            }
+          },
+          {
+            "field": {
+              "name": "account_ancestors",
+              "op": "contains",
+              "value": "FX_LOSS"
+            }
+          }
+        ]
+      },
+      "requires_line_fact": "FX_UNDERLYING_ITEM",
+      "inherits_category": true,
+      "undue_cost_outcome": {
+        "category": "OPERATING",
+        "subcategory": "OPERATING_OTHER"
+      },
+      "source": {
+        "type": "IFRS_STANDARD",
+        "reference": "IFRS 18 paragraph B65",
+        "verification_status": "VERIFIED_SECONDARY",
+        "note": "docs/07 F5. FX on a trade receivable is operating."
+      }
+    },
+    {
+      "rule_id": "IFRS18-DERIV-001",
+      "priority": 410,
+      "description": "Gains and losses on a derivative, and on an instrument designated as a hedging instrument, are classified in the same category as the income and expenses affected by the risks the instrument is used to manage. Which risk an instrument manages is a fact about that instrument, so it is asked per line.",
+      "condition": {
+        "any": [
+          {
+            "field": {
+              "name": "account_ancestors",
+              "op": "contains",
+              "value": "DERIVATIVE_GAIN"
+            }
+          },
+          {
+            "field": {
+              "name": "account_ancestors",
+              "op": "contains",
+              "value": "DERIVATIVE_LOSS"
+            }
+          }
+        ]
+      },
+      "requires_line_fact": "DERIVATIVE_RISK_MANAGED",
+      "inherits_category": true,
+      "undue_cost_outcome": {
+        "category": "OPERATING",
+        "subcategory": "OPERATING_OTHER"
+      },
+      "source": {
+        "type": "IFRS_STANDARD",
+        "reference": "IFRS 18 paragraph B72",
+        "verification_status": "VERIFIED_SECONDARY",
+        "note": "docs/07 F6, F7. Where applying B72 would require grossing up gains and losses, or involve undue cost or effort, all gains and losses on the derivative go to operating."
+      }
+    },
+    {
+      "rule_id": "IFRS18-AGGREGATE-001",
+      "priority": 900,
+      "description": "An aggregate caption whose contents cannot be inferred from the caption alone is not classified. It is routed to decomposition or to human review, because classifying it as a whole would assign one category to items belonging in several.",
+      "condition": {
+        "field": {
+          "name": "is_aggregate",
+          "op": "eq",
+          "value": true
+        }
+      },
+      "outcome": {
+        "category": "UNCLASSIFIED",
+        "subcategory": null
+      },
+      "requires_human_review": true,
+      "source": {
+        "type": "OTHER",
+        "reference": "Open question Q5; IFRS 18 paragraph B65 for the FX component",
+        "verification_status": "VERIFIED_SECONDARY",
+        "note": "Not a requirement of the standard but a consequence of it: operating is the residual category, so an undecomposed 영업외수익 can conceal a real operating-profit effect."
+      }
+    },
+    {
+      "rule_id": "IFRS18-OPERATING-999",
+      "priority": 9999,
+      "description": "Residual: income and expenses not classified into the investing, financing, income taxes or discontinued operations categories are classified in the operating category. This is the definition of the operating category, not a fallback. Marked is_residual so the engine records it as RESIDUAL_DEFAULT and grades confidence by whether the account was recognised at all — an unrecognised caption reaching here is a much weaker position than a recognised one, and must not inherit a rule's certainty.",
+      "condition": {
+        "field": {
+          "name": "statement_section",
+          "op": "eq",
+          "value": "PL"
+        }
+      },
+      "outcome": {
+        "category": "OPERATING",
+        "subcategory": null
+      },
+      "source": {
+        "type": "IFRS_STANDARD",
+        "reference": "IFRS 18 paragraphs 52-68",
+        "verification_status": "VERIFIED_SECONDARY",
+        "note": "docs/07 F2. The engine positively identifies the other four categories; what survives is operating by definition."
+      },
+      "is_residual": true
+    }
+  ]
+}

@@ -10,14 +10,22 @@ audit trail, how and why operating profit changes.
 
 ---
 
-## Status: Phase 4 — account normalization
+## Status: Phase 5 — IFRS 18 classification engine
 
-Phases 1–4 are complete: repository and tooling, the database schema
-(17 tables, 65 CHECK constraints), XLSX + CSV extraction with cell-level
-provenance and reconciliation against the source's own subtotals, and account
-normalization against a catalog of 34 canonical accounts and 198 synonyms.
+Phases 1–5 are complete: repository and tooling, the database schema,
+XLSX + CSV extraction with cell-level provenance and reconciliation against the
+source's own subtotals, account normalization against a catalog of 34 canonical
+accounts and 198 synonyms, and the IFRS 18 classification engine itself.
 
-The IFRS 18 classification engine is Phase 5 — the next step.
+Statement reconstruction and impact analysis are Phases 6–7.
+
+> **Citations are `VERIFIED_SECONDARY`.** Every rule names the IFRS 18
+> paragraph it implements, confirmed against IFRS Foundation and Big 4
+> publications — not against the issued text of the standard, which this
+> environment cannot reach. Two rules that fire on ordinary non-financial
+> corporates have conditions still to be confirmed, so **every match on them is
+> routed to human review**. See
+> [`docs/07-ifrs18-source-verification.md`](docs/07-ifrs18-source-verification.md).
 
 Both adapters share one extraction pipeline (`app/adapters/ingest/grid.py`),
 so the format is transport only — a test asserts the two produce identical
@@ -73,7 +81,7 @@ cd frontend && npm run dev                               # http://localhost:3000
 | `make test` | Backend test suite |
 | `make e2e` | Playwright tests (stack must be running) |
 | `make revision m="..."` | Autogenerate a migration |
-| `make seed` | Load the account catalog into the database |
+| `make seed` | Load the account catalog and rule set into the database |
 
 API docs at `http://localhost:8000/docs`.
 
@@ -89,7 +97,7 @@ Verified on 2026-09-19 against a live PostgreSQL 16 and both servers running:
 - The `audit_logs` append-only trigger rejects both UPDATE and DELETE
 - The landing page renders the §24 disclaimer **fetched from the API**, not a
   local copy
-- Backend: 282 tests pass, `ruff` clean, `mypy --strict` clean
+- Backend: 784 tests pass, `ruff` clean, `mypy --strict` clean
 - 100% of detail lines normalize **without AI** on both the canonical fixture
   and a "messy" one whose captions appear nowhere in the catalog verbatim
   (Phase 4 target was 90%)
