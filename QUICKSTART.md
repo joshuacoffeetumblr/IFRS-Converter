@@ -24,6 +24,13 @@ The API migrates and seeds itself on start, so there is nothing to run by hand.
 > Free instances sleep after inactivity and take ~30s to wake; the free
 > database expires after 30 days. Fine for a prototype, not for client work.
 >
+> **Uploaded source documents do not survive a restart** on the free plan,
+> which cannot have a persistent disk. The analysis does — every extracted
+> line, its cell-level provenance and the whole audit trail are in Postgres —
+> but re-running extraction on an older project will fail with `file-missing`,
+> because the file it would re-read is gone. `render.yaml` carries the disk
+> block to uncomment when you move the API to a paid plan.
+>
 > Two things had to change before this could work, both found by trying it:
 > the web app read its API URL from a `NEXT_PUBLIC_` variable, which Next
 > inlines at **build** time — before the API has a URL — so a container could

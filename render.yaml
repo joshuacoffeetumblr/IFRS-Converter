@@ -21,7 +21,6 @@ services:
   - type: web
     name: ifrs18-api
     runtime: docker
-    repo: https://github.com/joshuacoffeetumblr/IFRS-Converter
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     plan: free
@@ -53,23 +52,31 @@ services:
       # service exists, so it is asked for — see the note in QUICKSTART.md.
       - key: IFRS18_CORS_ORIGINS
         sync: false
-      # Uploaded documents live on a disk, not in the image (spec §32).
+      # Container-local, because a free instance cannot have a disk.
+      #
+      # The consequence, stated plainly: **uploaded source documents do not
+      # survive a restart or a redeploy.** The analysis itself does — every
+      # extracted line, its cell-level provenance and the whole audit trail
+      # live in Postgres — but re-running extraction on an older project will
+      # fail with `file-missing`, because the file it would re-read is gone.
+      #
+      # To keep them, move this service to a paid plan and add:
+      #
+      #   disk:
+      #     name: uploads
+      #     mountPath: /srv/var/uploads
+      #     sizeGB: 1
       - key: IFRS18_UPLOAD_DIRECTORY
         value: /srv/var/uploads
       # Off unless you supply a key. Everything a rule cannot decide still
       # reaches a person either way (spec §1).
       - key: IFRS18_AI_ENABLED
         value: "false"
-    disk:
-      name: uploads
-      mountPath: /srv/var/uploads
-      sizeGB: 1
 
   # ---------------------------------------------------------------- web ----
   - type: web
     name: ifrs18-web
     runtime: docker
-    repo: https://github.com/joshuacoffeetumblr/IFRS-Converter
     dockerfilePath: ./frontend/Dockerfile
     dockerContext: ./frontend
     plan: free
