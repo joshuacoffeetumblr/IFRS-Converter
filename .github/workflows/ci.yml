@@ -59,15 +59,24 @@ jobs:
       - name: Type check
         run: .venv/bin/mypy app tests
 
-      - name: Tests
-        run: .venv/bin/pytest --cov=app --cov-report=term-missing
-
+      # Before the tests, not after. Run the other way round — as this
+      # workflow did for its first twenty runs — every database-backed test
+      # meets an empty schema and the whole job fails on `relation "users"
+      # does not exist`. It passed locally the entire time, because a
+      # developer's database was migrated once and stayed migrated.
       - name: Migrations apply cleanly
         run: .venv/bin/alembic upgrade head
 
       - name: Schema matches models (no un-migrated drift)
-        run: |
-          .venv/bin/alembic check
+        run: .venv/bin/alembic check
+
+      # Three tests read the account catalog out of the database rather than
+      # the JSON, so a migrated-but-empty schema is not enough.
+      - name: Seed the catalog and rule set
+        run: .venv/bin/python -m app.cli seed
+
+      - name: Tests
+        run: .venv/bin/pytest --cov=app --cov-report=term-missing
 
   frontend:
     name: Frontend (lint, types, build)
@@ -194,13 +203,15 @@ jobs:
         working-directory: backend
         run: |
           uv venv --python ${{ env.PYTHON_VERSION }} .venv
-          uv pip install -e ".[dev]"
+          uv pip install --python .venv/bin/python -e ".[dev]"
 
-      - name: Migrate and seed
+      - name: Migrate
         working-directory: backend
-        run: |
-          .venv/bin/alembic upgrade head
-          .venv/bin/python -m app.cli seed
+        run: .venv/bin/alembic upgrade head
+
+      - name: Seed
+        working-directory: backend
+        run: .venv/bin/python -m app.cli seed
 
       - name: Start the API
         working-directory: backend
