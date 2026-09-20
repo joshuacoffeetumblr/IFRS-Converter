@@ -213,7 +213,16 @@ def test_inferred_lines_record_how_their_sign_was_determined(tmp_path: Path) -> 
     assert revenue.sign_normalization is SignNormalization.AS_IS
 
 
-def test_scale_defaults_to_won_when_no_unit_is_printed(tmp_path: Path) -> None:
+def test_an_unprinted_unit_is_reported_as_unknown_not_as_won(tmp_path: Path) -> None:
+    """This test previously asserted `== 0`, and that assertion was the bug.
+
+    A document that names no unit and a document that says 원 are different
+    facts, and only the first may be overridden by what the project was
+    configured with. Collapsing both to `0` meant a statement genuinely in 원 —
+    which is how a DART 재무제표 prints — was replaced by the project's default
+    of 백만원 through `statement.scale or project.presentation_scale`. The
+    figures stayed in 원 and the label read 백만원.
+    """
     path = build_workbook(tmp_path / "noscale.xlsx", style=SignStyle.PARENTHESES)
     from openpyxl import load_workbook
 
@@ -222,4 +231,4 @@ def test_scale_defaults_to_won_when_no_unit_is_printed(tmp_path: Path) -> None:
     sheet["A3"] = ""  # remove "(단위: 백만원)"
     workbook.save(path)
 
-    assert read_income_statement(path).scale == 0
+    assert read_income_statement(path).scale is None

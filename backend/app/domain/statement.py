@@ -286,6 +286,8 @@ def reconstruct(
         sections=tuple(sections),
         subtotals=subtotals,
         currency=statement.currency,
-        scale=statement.scale,
+        # A reconstruction has to state a unit, and a source that named none
+        # was read as printed — which is 원.
+        scale=0 if statement.scale is None else statement.scale,
         reported_operating_profit=reported_operating_profit(statement),
     )

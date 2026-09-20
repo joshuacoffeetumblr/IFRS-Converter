@@ -245,3 +245,40 @@ def test_all_three_formats_read_a_filing_shaped_statement_identically(
     assert {run.detail_lines for run in runs} == {9}
     assert len({tuple(line.amount for line in run.source.lines) for run in runs}) == 1
     assert len({run.normalization.coverage for run in runs}) == 1
+
+
+# ---------------------------------------------------------------------------
+# The presentation unit
+# ---------------------------------------------------------------------------
+
+
+def test_a_document_that_names_no_unit_is_distinguishable_from_one_saying_won(
+    tmp_path: Path,
+) -> None:
+    """`None` and `0` are different answers.
+
+    A DART 재무제표 prints its figures in 원 and, very often, says so nowhere.
+    Reported as `0` for both cases, a statement genuinely in 원 was treated as
+    "unstated" by `statement.scale or project.presentation_scale` — truthiness
+    — and silently took the project's default of 백만원 instead. The figures
+    stayed in 원 while the label read 백만원, so every number on screen was
+    understood a million times too small. Nothing failed; the unit was simply
+    wrong.
+    """
+    from app.adapters.ingest.grid import detect_scale
+
+    assert detect_scale(("(단위: 원)",)) == 0
+    assert detect_scale(("(단위: 백만원)",)) == 6
+    assert detect_scale(("제 56 기 반기",)) is None
+
+    silent = build_dart_workbook(tmp_path / "silent.xlsx")
+    stated = build_dart_workbook(tmp_path / "stated.xlsx", unit_line="(단위: 원)")
+
+    assert dry_run(silent).source.scale is None
+    assert dry_run(stated).source.scale == 0
+
+
+def test_a_stated_unit_is_read_from_the_document(tmp_path: Path) -> None:
+    path = build_dart_workbook(tmp_path / "millions.xlsx", unit_line="(단위: 백만원)")
+
+    assert dry_run(path).source.scale == 6

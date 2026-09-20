@@ -209,8 +209,19 @@ class ExtractOptions:
 # ---------------------------------------------------------------------------
 
 
-def detect_scale(texts: tuple[str, ...]) -> int:
-    """Read ``(단위: 백만원)`` into a power of ten. Defaults to 0 (원)."""
+def detect_scale(texts: tuple[str, ...]) -> int | None:
+    """Read ``(단위: 백만원)`` into a power of ten, or ``None`` if unstated.
+
+    ``None`` and ``0`` are different answers and must not be conflated. ``0``
+    means the document said 원; ``None`` means it said nothing, and only then
+    may a caller fall back to what the project was configured with.
+
+    Returning ``0`` for both was a silent defect: a statement genuinely
+    presented in 원 — which is how a DART 재무제표 prints — has scale 0, and
+    ``statement.scale or project.presentation_scale`` then takes the project's
+    default instead. The figures stay in 원 while the label reads 백만원, so
+    every number on screen is understood a million times too small.
+    """
     for text in texts:
         match = _UNIT_PATTERN.search(text)
         if not match:
@@ -219,7 +230,7 @@ def detect_scale(texts: tuple[str, ...]) -> int:
         for unit, power in _SCALE_UNITS:
             if unit in unit_text:
                 return power
-    return 0
+    return None
 
 
 def parse_cell(value: object) -> ParsedAmount:

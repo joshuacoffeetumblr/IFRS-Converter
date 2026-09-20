@@ -83,8 +83,10 @@ class ExtractedStatement:
     source_file: str
     lines: tuple[ExtractedLine, ...]
     currency: str = "KRW"
-    #: Power of ten the figures are stated in: 6 means 백만원.
-    scale: int = 0
+    #: Power of ten the figures are stated in: 6 means 백만원, 0 means 원.
+    #: ``None`` means the document did not say — which is not the same as 원,
+    #: and is the only case where a caller may substitute a configured default.
+    scale: int | None = None
     sheet: str | None = None
     period_label: str | None = None
 

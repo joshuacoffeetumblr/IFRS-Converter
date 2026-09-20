@@ -122,7 +122,9 @@ async def extract(
             period_end=project.period_end,
             is_comparative=options.period_index > 0,
             currency=project.presentation_currency,
-            scale=statement.scale or project.presentation_scale,
+            # `is None`, not `or`: a statement in 원 has scale 0, and
+            # truthiness would replace it with the project's default.
+            scale=(project.presentation_scale if statement.scale is None else statement.scale),
             source_locator={
                 "source_file": statement.source_file,
                 "sheet": statement.sheet,
