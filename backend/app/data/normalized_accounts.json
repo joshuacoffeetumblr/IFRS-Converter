@@ -68,14 +68,35 @@
     {
       "code": "OTHER_INCOME", "label_ko": "기타수익", "label_en": "Other income",
       "section": "PL", "nature": "INCOME", "ambiguous_by_default": true,
-      "synonyms_ko": ["기타수익", "기타영업외수익", "잡이익", "기타의수익"],
-      "synonyms_en": ["Other income", "Miscellaneous income", "Other gains", "Other operating income"]
+      "synonyms_ko": ["기타수익", "기타영업외수익", "기타의수익"],
+      "synonyms_en": ["Other income", "Other gains", "Other operating income"]
     },
     {
       "code": "OTHER_EXPENSES", "label_ko": "기타비용", "label_en": "Other expenses",
       "section": "PL", "nature": "EXPENSE", "ambiguous_by_default": true,
-      "synonyms_ko": ["기타비용", "기타영업외비용", "잡손실", "기타의비용"],
-      "synonyms_en": ["Other expenses", "Miscellaneous expenses", "Other losses", "Other operating expenses"]
+      "synonyms_ko": ["기타비용", "기타영업외비용", "기타의비용"],
+      "synonyms_en": ["Other expenses", "Other losses", "Other operating expenses"]
+    },
+    {
+      "code": "MISCELLANEOUS_INCOME", "label_ko": "잡이익", "label_en": "Miscellaneous income",
+      "section": "PL", "nature": "INCOME",
+      "note": "A leaf, not an aggregate. 잡이익 is already the residual *inside* a note, so there is nothing further to decompose and it reaches operating by the standard's residual rule. Mapping it to 기타수익 instead left it permanently UNCLASSIFIED, which blocked a fully decomposed real filing from ever finalizing.",
+      "synonyms_ko": ["잡이익", "잡수익", "기타잡이익"],
+      "synonyms_en": ["Miscellaneous income", "Miscellaneous gains", "Sundry income"]
+    },
+    {
+      "code": "MISCELLANEOUS_LOSS", "label_ko": "잡손실", "label_en": "Miscellaneous losses",
+      "section": "PL", "nature": "EXPENSE",
+      "note": "The counterpart of 잡이익; see that account.",
+      "synonyms_ko": ["잡손실", "잡비용", "기타잡손실"],
+      "synonyms_en": ["Miscellaneous losses", "Miscellaneous expenses", "Sundry losses"]
+    },
+    {
+      "code": "DONATIONS", "label_ko": "기부금", "label_en": "Donations",
+      "section": "PL", "nature": "EXPENSE",
+      "note": "Operating by the residual rule: a donation is neither a return on an investment nor a cost of obtaining finance, so IFRS 18 gives it no positive reason to leave operating.",
+      "synonyms_ko": ["기부금", "기부금비용", "후원금"],
+      "synonyms_en": ["Donations", "Donation", "Charitable donations", "Contributions"]
     },
     {
       "code": "NON_OPERATING_INCOME", "label_ko": "영업외수익",
@@ -108,19 +129,19 @@
       "code": "INTEREST_INCOME", "label_ko": "이자수익", "label_en": "Interest income",
       "section": "PL", "nature": "INCOME", "parent_code": "FINANCE_INCOME",
       "synonyms_ko": ["이자수익", "예금이자", "이자수입"],
-      "synonyms_en": ["Interest income", "Interest revenue"]
+      "synonyms_en": ["Interest income", "Interest revenue", "Interest income, finance income"]
     },
     {
       "code": "INTEREST_EXPENSE", "label_ko": "이자비용", "label_en": "Interest expense",
       "section": "PL", "nature": "EXPENSE", "parent_code": "FINANCE_COSTS",
       "synonyms_ko": ["이자비용", "차입금이자", "사채이자"],
-      "synonyms_en": ["Interest expense", "Interest costs", "Finance charges"]
+      "synonyms_en": ["Interest expense", "Interest costs", "Finance charges", "Interest expense, finance expense"]
     },
     {
       "code": "DIVIDEND_INCOME", "label_ko": "배당금수익", "label_en": "Dividend income",
       "section": "PL", "nature": "INCOME", "parent_code": "FINANCE_INCOME",
       "synonyms_ko": ["배당금수익", "배당수익"],
-      "synonyms_en": ["Dividend income"]
+      "synonyms_en": ["Dividend income", "Dividend income non-operating"]
     },
     {
       "code": "FX_GAIN", "label_ko": "외환차익", "label_en": "Foreign exchange gain",
@@ -153,7 +174,7 @@
       "label_en": "Gain on disposal of property, plant and equipment",
       "section": "PL", "nature": "INCOME",
       "synonyms_ko": ["유형자산처분이익", "유형자산매각이익", "자산처분이익"],
-      "synonyms_en": ["Gain on disposal of PPE", "Gain on sale of fixed assets"]
+      "synonyms_en": ["Gain on disposal of PPE", "Gain on sale of fixed assets", "Gains on disposals of property, plant and equipment"]
     },
     {
       "code": "LOSS_ON_DISPOSAL_OF_PPE", "label_ko": "유형자산처분손실",
@@ -172,13 +193,13 @@
       "code": "DERIVATIVE_GAIN", "label_ko": "파생상품평가이익",
       "label_en": "Gain on derivatives", "section": "PL", "nature": "INCOME",
       "synonyms_ko": ["파생상품평가이익", "파생상품거래이익", "파생상품이익", "통화선도평가이익", "통화선도거래이익"],
-      "synonyms_en": ["Gain on derivatives", "Gain on valuation of derivatives"]
+      "synonyms_en": ["Gain on derivatives", "Gain on valuation of derivatives", "Gain from derivatives", "Gains from derivatives"]
     },
     {
       "code": "DERIVATIVE_LOSS", "label_ko": "파생상품평가손실",
       "label_en": "Loss on derivatives", "section": "PL", "nature": "EXPENSE",
       "synonyms_ko": ["파생상품평가손실", "파생상품거래손실", "파생상품손실", "통화선도평가손실", "통화선도거래손실"],
-      "synonyms_en": ["Loss on derivatives", "Loss on valuation of derivatives"]
+      "synonyms_en": ["Loss on derivatives", "Loss on valuation of derivatives", "Loss from derivatives", "Losses from derivatives"]
     },
     {
       "code": "FVPL_FINANCIAL_ASSET_GAIN", "label_ko": "당기손익-공정가치측정금융자산평가이익",
@@ -198,7 +219,7 @@
       "code": "RENTAL_INCOME", "label_ko": "임대료수익", "label_en": "Rental income",
       "section": "PL", "nature": "INCOME",
       "synonyms_ko": ["임대료수익", "임대수익", "임대료"],
-      "synonyms_en": ["Rental income", "Lease income"]
+      "synonyms_en": ["Rental income", "Lease income", "Lent income"]
     },
     {
       "code": "GOVERNMENT_GRANT_INCOME", "label_ko": "정부보조금수익",

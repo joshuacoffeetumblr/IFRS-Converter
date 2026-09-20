@@ -247,6 +247,7 @@ _EXPENSE_MARKERS_EN: tuple[str, ...] = (
     "writedown",
     "writeoff",
     "provisionfor",
+    "donation",
 )
 
 #: Dropped before an English caption is tested. IFRS labels use a parenthetical

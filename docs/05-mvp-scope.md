@@ -213,6 +213,52 @@ associates` is income, and matching `loss` inside it would have turned a
 The English synonyms added are the IFRS taxonomy's own standard labels, taken
 from the filing's label linkbase rather than guessed.
 
+### 6.0.1 Taken all the way through, 2026-09-20
+
+The filing's own notes (roles `D834320`, `D834330`) decompose all four blocked
+aggregates, and every one of them sums back to its caption exactly — which is
+the §4/Q5 decomposition requirement, met by a real document rather than a
+fixture. Fed the decomposed statement, the pipeline runs end to end:
+
+| Stage | Result |
+|---|---|
+| Extraction | 5/5 §17 checks exact, signs derived and proved |
+| Normalization | 18/18 detail lines, 0 needing decomposition |
+| Classification | 8 of the 10 rules fire — B65 (FX, 2 lines), B72 (derivatives, 2), ¶49-50 (investing, 4), financing (1), tax (1) |
+| Questions | 4 raised: 2 company-scoped, 2 line-scoped — and the gate stays shut until they are answered |
+| Gate, once answered | PASSED, 0 UNCLASSIFIED, total invariance exact |
+
+**The most important line of that table is the fourth.** With eight lines
+blocked on unanswered facts the product refuses to produce a number, and it
+does not infer from "this is a manufacturer" whether investing in assets is a
+main business activity (§10). Answering the four questions is an accounting
+determination, and it belongs to a person.
+
+A third round of the same lexical defect was found here, and it is the most
+expensive one yet. The dictionary already held every account the rules key on —
+`DERIVATIVE_GAIN`, `DIVIDEND_INCOME`, `RENTAL_INCOME` and the rest — but its
+English synonyms did not carry the IFRS taxonomy's spellings: `Gain from
+derivatives` missed `Gain on derivatives`, `Lent income` missed `Rental
+income`, `Interest expense, finance expense` missed `Interest expense`. Those
+lines fell to the operating residual **silently**. Nothing failed; the
+reclassification simply did not happen, and the reported IFRS 18 impact would
+have been understated by the whole of the B72 and ¶49-50 effect.
+
+The tests added for it assert that the **rule fires**, not that the caption
+matched — a synonym resolving to an account no rule looks at is
+indistinguishable in the output from no synonym at all.
+
+### 6.0.2 Accounting decisions taken here, for review
+
+Three accounts were added, and two synonyms moved, on judgement rather than
+on a defect. They are listed for an accountant to confirm or reverse:
+
+| Change | Reasoning |
+|---|---|
+| New `MISCELLANEOUS_INCOME` (잡이익) and `MISCELLANEOUS_LOSS` (잡손실) as **leaves** | They are already the residual *inside* a note, so there is nothing further to decompose, and operating follows from the standard's residual rule. Mapped to 기타수익/기타비용 they inherited `ambiguous_by_default` and stayed permanently UNCLASSIFIED — a fully decomposed real filing could never finalize, whatever the reviewer did. |
+| New `DONATIONS` (기부금) | Operating by the residual rule: a donation is neither a return on an investment nor a cost of obtaining finance, so IFRS 18 gives it no positive reason to leave operating. |
+| 잡이익/잡손실 removed from 기타수익/기타비용's synonyms | Otherwise the new leaves are unreachable. 기타수익 and 기타비용 themselves stay aggregates — they are exactly what IFRS 18 wants looked inside — and a test asserts it. |
+
 ### 6.1 What asking the question already found
 
 Before a real file arrived, asking "what about 삼성전자's statement?" was enough
