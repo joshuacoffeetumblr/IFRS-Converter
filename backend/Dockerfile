@@ -41,12 +41,14 @@ COPY --from=builder /opt/venv /opt/venv
 COPY app ./app
 COPY alembic.ini ./
 COPY alembic ./alembic
+COPY docker-entrypoint.sh ./
 
 # Do not run as root (spec §31). The upload directory is the one path the
 # process writes to, and it is created here so the container does not need a
 # writable /srv.
 RUN useradd --create-home --uid 10001 appuser \
     && mkdir -p /srv/var/uploads \
+    && chmod +x /srv/docker-entrypoint.sh \
     && chown -R appuser:appuser /srv
 USER appuser
 
@@ -55,4 +57,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=5 \
     CMD curl -fsS "http://localhost:${PORT:-8000}/api/health" || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Migrate, seed, then serve. The logic is in the script so no platform's
+# quoting rules can come between the intent and what runs.
+CMD ["/srv/docker-entrypoint.sh"]

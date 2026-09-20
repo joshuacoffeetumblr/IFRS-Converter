@@ -35,22 +35,9 @@ services:
     # catalog rather than reinserting it — so a restart is safe. This belongs
     # in a pre-deploy step on a paid plan; on free there is no such step, and
     # a prototype runs one instance, so doing it here is the honest trade.
-    #
-    # The retry is not defensive padding. A blueprint creates the database and
-    # the services at the same time, so on a first deploy the API can reach
-    # `alembic` before Postgres is accepting connections — the command fails,
-    # the container exits, and the deploy is marked failed with a build that
-    # was perfectly fine. `${PORT:-8000}` covers the same kind of gap: an
-    # empty `--port` is an immediate crash rather than an error anyone can
-    # read.
-    dockerCommand: >-
-      sh -c 'for i in 1 2 3 4 5 6 7 8 9 10; do
-      alembic upgrade head && break;
-      echo "database not ready (attempt $i), retrying in 5s"; sleep 5;
-      done;
-      alembic current >/dev/null || { echo "migrations never applied"; exit 1; };
-      python -m app.cli seed &&
-      exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}'
+    # No `dockerCommand`: the image's own entrypoint migrates, seeds and then
+    # serves. Overriding it here once put the whole command inside a second
+    # shell and every deploy died with `sh: 1: …: not found`.
     envVars:
       - key: IFRS18_DATABASE_URL
         fromDatabase:

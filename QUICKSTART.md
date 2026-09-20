@@ -19,7 +19,11 @@ end to end in this repository.
    - `IFRS18_API_URL` = the **api** service's https URL
 5. Redeploy both. Open the web URL.
 
-The API migrates and seeds itself on start, so there is nothing to run by hand.
+The API migrates and seeds itself on start, so there is nothing to run by hand
+— that logic is `backend/docker-entrypoint.sh`, the image's own command, not a
+platform setting. It waits for the database rather than exiting if Postgres is
+not accepting connections yet, which on a first blueprint deploy it often is
+not.
 
 > Free instances sleep after inactivity and take ~30s to wake; the free
 > database expires after 30 days. Fine for a prototype, not for client work.
