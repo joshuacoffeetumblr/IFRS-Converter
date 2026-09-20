@@ -272,3 +272,106 @@ def _quote(value: str | Decimal, delimiter: str) -> str:
 
 def expected_amounts() -> dict[str, Decimal]:
     return {row.label: row.amount for row in STATEMENT_ROWS}
+
+
+#: Won-scale figures, as a large Korean filing prints them: no presentation
+#: unit, so every line is a 14- or 15-digit integer. Invented, but at the
+#: magnitude that matters — this is where a reader that rounds gets found out.
+DART_ROWS: tuple[Row, ...] = (
+    Row("Ⅰ. 수익(매출액)", Decimal("300870903000000"), note="29"),
+    Row("Ⅱ. 매출원가", Decimal("-189402017000000"), note="29"),
+    Row(
+        "Ⅲ. 매출총이익",
+        Decimal("111468886000000"),
+        is_subtotal=True,
+        subtotal_kind=SubtotalKind.GROSS_PROFIT,
+    ),
+    Row("판매비와관리비", Decimal("-74933000000000"), note="30"),
+    Row(
+        "Ⅳ. 영업이익",
+        Decimal("36535886000000"),
+        is_subtotal=True,
+        subtotal_kind=SubtotalKind.REPORTED_OPERATING_PROFIT,
+    ),
+    Row("기타수익", Decimal("2411000000000"), depth=1, note="31"),
+    Row("기타비용", Decimal("-1950000000000"), depth=1, note="31"),
+    Row("지분법이익", Decimal("1104000000000"), depth=1, note="12"),
+    Row("금융수익", Decimal("14200000000000"), depth=1, note="32"),
+    Row("금융비용", Decimal("-11480000000000"), depth=1, note="32"),
+    Row(
+        "Ⅴ. 법인세비용차감전순이익",
+        Decimal("40820886000000"),
+        is_subtotal=True,
+        subtotal_kind=SubtotalKind.PROFIT_BEFORE_TAX,
+    ),
+    Row("법인세비용", Decimal("-8164177000000"), note="33"),
+    Row(
+        "Ⅵ. 당기순이익",
+        Decimal("32656709000000"),
+        is_subtotal=True,
+        subtotal_kind=SubtotalKind.PROFIT_FOR_THE_PERIOD,
+    ),
+)
+
+
+def build_dart_workbook(
+    path: Path,
+    *,
+    rows: tuple[Row, ...] = DART_ROWS,
+    periods: int = 3,
+    note_header: str | None = "주석",
+    unit_line: str | None = None,
+) -> Path:
+    """A workbook shaped like a 재무제표 downloaded from DART.
+
+    Four things differ from `build_workbook`, and each one broke something:
+
+    * **The note column holds bare numbers** — `29`, not `주석 29`. That is how
+      filings actually print it, and it reads as a figure. Because it sits left
+      of the amounts it was picked as the current period, so every amount became
+      a note number and every row without a note — which is every subtotal —
+      disappeared for having no amount.
+    * **Subtotals are marked only by their captions** (`Ⅲ. 매출총이익`), with no
+      bold and no cell indent. A real download carries no such formatting.
+    * **Three comparative periods**, not two.
+    * **No presentation unit**, so the figures are 14- and 15-digit integers in
+      원 — near the edge of what a spreadsheet stores exactly.
+
+    The figures are invented. Only the shape is drawn from how these filings
+    are printed; nothing here is any company's reported result.
+    """
+    workbook = Workbook()
+    cover = workbook.active
+    assert cover is not None
+    cover.title = "요약"
+    cover["A1"] = "회사명"
+    cover["B1"] = "○○전자"
+    cover["A2"] = "결산기준일"
+    cover["B2"] = "2025-12-31"
+
+    sheet = workbook.create_sheet("연결 포괄손익계산서")
+    sheet["A1"] = "연결 포괄손익계산서"
+    sheet["A2"] = "제 56 기 2025.01.01 부터 2025.12.31 까지"
+    if unit_line:
+        sheet["A3"] = unit_line
+
+    header_row = 5
+    sheet.cell(row=header_row, column=1, value="과목")
+    if note_header is not None:
+        sheet.cell(row=header_row, column=2, value=note_header)
+    for period in range(periods):
+        sheet.cell(row=header_row, column=3 + period, value=f"제 {56 - period} 기")
+
+    for offset, row in enumerate(rows):
+        excel_row = header_row + 1 + offset
+        sheet.cell(row=excel_row, column=1, value=row.label)
+        if row.note:
+            # The note as a number, which is the whole point of this fixture.
+            sheet.cell(row=excel_row, column=2, value=int(row.note))
+        for period in range(periods):
+            scaled = (row.amount * (Decimal(1) - Decimal(period) / 10)).quantize(Decimal("1"))
+            sheet.cell(row=excel_row, column=3 + period, value=int(scaled))
+
+    workbook.create_sheet("별도 포괄손익계산서")["A1"] = "별도 포괄손익계산서"
+    workbook.save(path)
+    return path

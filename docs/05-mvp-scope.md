@@ -172,6 +172,39 @@ file would not produce a shippable result.
 The expected first outcome on a real filing is a list of unrecognised captions,
 not a pass. That list is the work item.
 
+### 6.1 What asking the question already found
+
+Before a real file arrived, asking "what about 삼성전자's statement?" was enough
+to find a defect, because a filing's *shape* can be reproduced even when its
+figures cannot. A DART 재무제표 download differs from our fixtures in four
+ways, and one of them broke the reader:
+
+**The note column holds bare numbers.** Our fixtures print `주석 21`, which
+cannot be read as a figure. Filings print `21`. Sitting left of the amounts, it
+was selected as the current period — so every amount became a note number, and
+every row without a note, which is **every subtotal**, disappeared for having no
+amount. The same root cause meant note references were never collected at all,
+so note-based decomposition of an aggregate caption (B65, B72) would have had
+nothing to work from.
+
+The §17 reconciliation caught it — the verdict was MISREAD and no figure would
+ever have reached a screen. But "unreadable" is the wrong answer to a file we
+should read, and our own fixtures could not produce it.
+
+Fixed by surveying candidate columns across the whole grid instead of judging
+from one row: a note column is **sparse** (blank on every subtotal) and holds
+only small positive integers, and a `주석` header settles it outright. Magnitude
+alone decides nothing — a statement presented in 십억원 has real figures in the
+same range. All three adapters share the grid, so all three were affected and
+all three are fixed; a test asserts they still produce identical figures.
+
+The other three differences turned out to be handled: Roman-numeral caption
+prefixes (`Ⅲ. 매출총이익`) normalize, three comparative periods are reachable,
+and won-scale figures — 15-digit integers, with no presentation unit — survive
+exactly. That last one has a ceiling, and it is the spreadsheet's, not ours:
+a double holds integers exactly to 2⁵³, about 9,000조, which is two orders of
+magnitude above the largest line in any Korean income statement.
+
 ## 7. Outstanding inputs needed
 
 1. ~~Approve or amend this scope~~ — ✅ approved 2026-09-19.

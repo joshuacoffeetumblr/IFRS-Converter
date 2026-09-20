@@ -174,6 +174,12 @@ Verified on 2026-09-19 against a live PostgreSQL 16 and both servers running:
   rejected upload leaves nothing on disk
 - A failed extraction is recorded rather than rolled back, so a project whose
   statement could not be read never looks untouched
+- A note column printed as bare numbers — how filings actually print it — is
+  not mistaken for the current period, so the subtotals that carry no note
+  survive and the statement can be checked against its own arithmetic
+- Won-scale figures survive exactly: 15-digit integers with no presentation
+  unit, which is where a reader that goes through binary floating point starts
+  returning numbers nobody wrote
 - An AI-suggested business activity cannot unblock a rule: unconfirmed reads as
   *unknown* to the engine, and the database refuses to store it as confirmed
 - Answering a question re-runs classification immediately, and `NOT_SURE` is

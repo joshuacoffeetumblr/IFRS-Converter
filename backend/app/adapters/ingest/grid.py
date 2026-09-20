@@ -78,6 +78,13 @@ _UNIT_PATTERN = re.compile(r"단위\s*[:：]?\s*([^)\]]*)")
 
 #: A cell repeating a column heading, never a line item.
 NON_ITEM_PATTERN = re.compile(r"^(과목|계정과목|항목|구\s*분|account|description)$", re.I)
+#: Column headers that name a note-reference column rather than a figure.
+NOTE_HEADER_PATTERN = re.compile(r"^(주석|주기|참조|비고|註釋|note[s]?|ref(erence)?)$", re.I)
+
+#: A note reference is a small positive integer. Real figures in a Korean
+#: income statement are not bounded like this, but the bound alone decides
+#: nothing — see :func:`_note_columns`.
+MAX_NOTE_REFERENCE = 999
 
 
 class StatementNotFoundError(ValueError):
@@ -198,16 +205,114 @@ def parse_cell(value: object) -> ParsedAmount:
     return ParsedAmount(decimal_from_spreadsheet_value(value), SignNormalization.AS_IS)
 
 
-def find_layout(grid: Grid) -> tuple[int, int, list[int]]:
-    """Locate (label column, first data row, ordered amount columns).
+@dataclass(frozen=True, slots=True)
+class Layout:
+    """Where the statement's parts sit in the grid."""
+
+    label_column: int
+    first_row: int
+    amount_columns: tuple[int, ...]
+    #: The note-reference column, when the grid has one. Korean filings print
+    #: it as a bare number, so it has to be identified rather than recognised
+    #: by looking un-numeric.
+    note_column: int | None = None
+
+
+def _note_columns(
+    grid: Grid, *, label_column: int, first_row: int, candidates: list[int]
+) -> set[int]:
+    """Which candidate columns hold note references rather than figures.
+
+    Korean filings print the note column as a bare number — `29`, not
+    `주석 29` — so it reads as a figure and, being to the left of the amounts,
+    gets picked as the current period. Everything downstream then agrees: the
+    figures are note numbers, and every row without a note (which is every
+    subtotal) vanishes for having no amount. The statement's own arithmetic
+    catches it, so nothing wrong is ever shown — but it is caught as "this file
+    is unreadable" rather than read correctly, so it has to be settled here.
+
+    A header saying so is decisive. Failing that, the deciding signal is
+    **sparsity**: a note column is blank on most rows and on every subtotal,
+    while an amount column carries a figure on essentially every line. The
+    small-integer bound only narrows what sparsity is allowed to disqualify —
+    on its own it would throw away a genuine statement presented in 십억원.
+    """
+    if len(candidates) < 2:
+        # Nothing to choose between. A statement with one numeric column is
+        # read as that column, note or not, and the reconciliation decides.
+        return set()
+
+    populated: dict[int, int] = dict.fromkeys(candidates, 0)
+    small_integers: dict[int, bool] = dict.fromkeys(candidates, True)
+    rows = 0
+
+    for grid_row in grid.rows:
+        if not grid_row or grid_row[0].row < first_row:
+            continue
+        cells = {cell.column: cell for cell in grid_row}
+        label = cells.get(label_column)
+        if not label or not label.text or NON_ITEM_PATTERN.match(normalise(label.text)):
+            continue
+        rows += 1
+        for column in candidates:
+            cell = cells.get(column)
+            if cell is None or cell.value is None or cell.text == "":
+                continue
+            populated[column] += 1
+            try:
+                value = parse_cell(cell.value).value
+            except AmountParseError:
+                small_integers[column] = False
+                continue
+            if value != value.to_integral_value() or not (0 < value <= MAX_NOTE_REFERENCE):
+                small_integers[column] = False
+
+    if rows == 0:
+        return set()
+
+    densest = max(populated.values())
+    notes: set[int] = set()
+    for column in candidates:
+        header = _header_above(grid, column=column, first_row=first_row)
+        if header and NOTE_HEADER_PATTERN.match(normalise(header)):
+            notes.add(column)
+            continue
+        # Sparser than the fullest column, and never anything but a small
+        # positive integer. Both, or it stays a candidate figure.
+        if small_integers[column] and populated[column] * 10 < densest * 9:
+            notes.add(column)
+
+    # Never disqualify everything: if the survey rules out every column, the
+    # survey is wrong, and reading the statement beats refusing it.
+    return notes if len(notes) < len(candidates) else set()
+
+
+def _header_above(grid: Grid, *, column: int, first_row: int) -> str | None:
+    """The nearest non-empty text sitting over a column, within a few rows."""
+    best: tuple[int, str] | None = None
+    for grid_row in grid.rows:
+        for cell in grid_row:
+            if cell.column != column or cell.row >= first_row:
+                continue
+            if first_row - cell.row > 3 or not cell.text:
+                continue
+            if best is None or cell.row > best[0]:
+                best = (cell.row, cell.text)
+    return best[1] if best else None
+
+
+def find_layout(grid: Grid) -> Layout:
+    """Locate the label column, the first data row, and the amount columns.
 
     Detected from the first row pairing a caption with at least one figure,
     rather than from a header row: heading captions vary between filings far
-    more than the shape of the data does.
+    more than the shape of the data does. The columns that row offers are then
+    surveyed across the whole grid, because one row cannot tell a note
+    reference from a figure — see :func:`_note_columns`.
     """
     for grid_row in grid.rows:
         label_column: int | None = None
-        amount_columns: list[int] = []
+        candidates: list[int] = []
         for grid_cell in grid_row:
             if grid_cell.value is None or grid_cell.text == "":
                 continue
@@ -218,9 +323,25 @@ def find_layout(grid: Grid) -> tuple[int, int, list[int]]:
                     label_column = grid_cell.column
                     continue
             if label_column is not None and looks_like_amount(grid_cell.value):
-                amount_columns.append(grid_cell.column)
-        if label_column is not None and amount_columns:
-            return label_column, grid_row[0].row, amount_columns
+                candidates.append(grid_cell.column)
+
+        if label_column is None or not candidates:
+            continue
+
+        first_row = grid_row[0].row
+        notes = _note_columns(
+            grid, label_column=label_column, first_row=first_row, candidates=candidates
+        )
+        amounts = tuple(column for column in candidates if column not in notes)
+        if not amounts:
+            continue
+        return Layout(
+            label_column=label_column,
+            first_row=first_row,
+            amount_columns=amounts,
+            # The leftmost, when a filing prints more than one reference column.
+            note_column=min(notes) if notes else None,
+        )
 
     raise StatementNotFoundError("could not locate a label column paired with figures")
 
@@ -236,7 +357,11 @@ def extract_statement(grid: Grid, options: ExtractOptions | None = None) -> Extr
     """
     options = options or ExtractOptions()
 
-    label_column, first_row, amount_columns = find_layout(grid)
+    layout = find_layout(grid)
+    label_column = layout.label_column
+    first_row = layout.first_row
+    amount_columns = list(layout.amount_columns)
+    note_column = options.note_column if options.note_column is not None else layout.note_column
     if options.label_column is not None:
         label_column = options.label_column
     if options.header_row is not None:
@@ -278,10 +403,12 @@ def extract_statement(grid: Grid, options: ExtractOptions | None = None) -> Extr
             continue
 
         note: str | None = None
-        if options.note_column is not None:
-            note_cell = cells.get(options.note_column)
+        if note_column is not None:
+            note_cell = cells.get(note_column)
             note = note_cell.text if note_cell else None
         else:
+            # No column was identified as holding references, so the only
+            # notes to find are ones printed as text beside the caption.
             for column in range(label_column + 1, amount_column):
                 candidate = cells.get(column)
                 if candidate and candidate.text and not looks_like_amount(candidate.value):

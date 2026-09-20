@@ -95,6 +95,9 @@ ignore = [
 "tests/test_question_catalog.py" = ["S101", "RUF001"]
 "tests/test_pdf_ingest.py" = ["S101", "RUF001"]
 "tests/fixtures/korean_pdf_statement.py" = ["RUF001"]
+# Roman-numeral codepoints (U+2160 and up) are what Korean filings print to
+# enumerate captions, so the fixture and its tests contain them on purpose.
+"tests/test_dart_layout.py" = ["S101", "ANN201", "ANN001", "RUF001"]
 "tests/test_api_analysis.py" = ["S101", "S105", "S106", "ANN201", "ANN001", "RUF001"]
 "tests/test_api_catalog.py" = ["S101", "S105", "S106", "ANN201", "ANN001", "RUF001"]
 "tests/test_upload_security.py" = ["S101", "S105", "S106", "ANN201", "ANN001", "RUF001"]
