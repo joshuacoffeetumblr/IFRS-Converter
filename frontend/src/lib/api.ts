@@ -23,11 +23,19 @@ import { readToken } from "@/lib/session";
  *
  * `NEXT_PUBLIC_API_URL` is still honoured so existing local setups and the
  * compose files keep working.
+ *
+ * A trailing slash is stripped. Every caller does `${apiBaseUrl()}/api${path}`,
+ * so a value pasted from a browser's address bar with its trailing `/` — the
+ * ordinary way to copy a Render service's URL — produced `…//api/auth/…`.
+ * FastAPI does not collapse a doubled slash, so that request matched no
+ * route and came back a genuine `404 Not Found`, which the client then
+ * displayed verbatim: indistinguishable from the app being unreachable,
+ * merely from one keystroke in how the URL was copied.
  */
 function apiBaseUrl(): string {
-  return (
-    process.env.IFRS18_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
-  );
+  const raw =
+    process.env.IFRS18_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  return raw.replace(/\/+$/, "");
 }
 
 export class ApiError extends Error {
