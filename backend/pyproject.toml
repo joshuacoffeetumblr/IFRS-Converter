@@ -6,7 +6,9 @@ requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
-    "pydantic>=2.9",
+    # `[email]`: `EmailStr` in app/api/schemas/auth.py raises ImportError at
+    # import time without email-validator, so the API would not start at all.
+    "pydantic[email]>=2.9",
     "pydantic-settings>=2.6",
     "sqlalchemy[asyncio]>=2.0.36",
     "asyncpg>=0.30",
@@ -20,6 +22,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# The AI assistant (spec §1 layer 2). An extra rather than a hard dependency
+# because the product is defined to work without it: anything a rule cannot
+# decide goes to a person either way, and `app.adapters.ai.factory` returns no
+# advisors when the SDK is absent. A deployment that will never enable the
+# assistant should not carry it.
+ai = [
+    "anthropic>=1.7",
+]
+
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
@@ -28,9 +39,13 @@ dev = [
     "ruff>=0.8",
     "mypy>=1.13",
     "types-openpyxl>=3.1",
+    "types-reportlab>=4.2",
     # Fixtures only: generates the synthetic Korean PDFs the reader is
     # tested against, so they stay reviewable as code rather than as binary.
     "reportlab>=4.2",
+    # So the advisor is type-checked and its factory exercised in CI, even
+    # though no test ever reaches the network.
+    "anthropic>=1.7",
 ]
 
 [build-system]

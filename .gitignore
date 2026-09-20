@@ -19,10 +19,13 @@ out/
 .turbo/
 *.tsbuildinfo
 
-# Environment & secrets
+# Environment & secrets. Deny everything, then allow the templates by name:
+# a new .env.<something> is a real file with real secrets far more often
+# than it is an example, so the default has to be ignore.
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 # Uploaded / generated financial data — never commit client statements
 uploads/

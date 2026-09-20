@@ -10,8 +10,12 @@
 >
 > **Not built yet:** `/jobs` (nothing runs asynchronously — extraction,
 > classification and export are all synchronous), `POST /export` (the two `GET`
-> export routes serve the file directly), PDF export and PDF ingest, and bulk
+> export routes serve the file directly), PDF **export**, and bulk
 > classification review — single `PATCH` is built.
+>
+> **PDF ingest is built** (2026-09-20). Text-based PDFs extract through the
+> same pipeline as XLSX and CSV, with the page number recorded in the source
+> locator. A PDF with no text layer is refused — see below.
 >
 > **Added beyond the original draft:** `POST /projects/{id}/reopen`, without
 > which finalization would be a one-way door; `GET /projects/{id}/exports`; and
@@ -150,8 +154,13 @@ signs were derived from the statement's own subtotals — accepted only when
 those subtotals then reconcile (spec §17).
 
 Failures are `422`: `no-upload`, `statement-not-found`,
-`unsupported-for-extraction` (PDF ingest is out of MVP scope — the file is
-stored, and the endpoint says so rather than half-reading it), `file-missing`.
+`unsupported-for-extraction`, `file-missing`.
+
+A **scanned PDF** — one with no text layer — fails as `statement-not-found`
+with a message saying so. It is not OCR'd and not guessed at: OCR misreads a
+digit silently, which is the one failure mode this product cannot have, and a
+silently wrong figure defeats every guarantee downstream of it. The response
+says to upload the XLSX or CSV the filing was produced from.
 A failed extraction is **recorded**: the project reaches `EXTRACTION_FAILED` and
 the upload carries `parse_status: "FAILED"` with `parse_error`.
 
@@ -328,9 +337,16 @@ Runs **synchronously** and returns `200`, for the same reason extraction does.
   decisions — all of each one, not just its category — and has to be asked for.
 - `discarded` counts decisions dropped because their line is no longer
   classifiable (a line corrected into a subtotal, say).
-- `ai_assistant_available` is **false** in this build: no advisor is
-  configured, so `use_ai_assistant` currently changes nothing. Said plainly
-  rather than left for a caller to infer from an empty result.
+- `ai_assistant_available` reports whether an advisor is actually
+  configured on this deployment, which is **false** unless both
+  `IFRS18_AI_ENABLED` and a key are set. When it is false, `use_ai_assistant`
+  changes nothing — said plainly rather than left for a caller to infer from an
+  empty result. The assistant is consulted only for a line no rule positively
+  identified and the dictionary did not recognise; its output is constrained to
+  a JSON schema built from the domain enums, validated, repaired once, and
+  discarded if it still does not validate (spec §12). A discarded suggestion is
+  not a failure: it sends the line to a person, which is where an undecidable
+  line was going anyway.
 - Account mappings are written back onto the lines, except where a person
   mapped one by hand — a manual mapping is a decision, it is never overwritten,
   and it is what the engine classifies on.

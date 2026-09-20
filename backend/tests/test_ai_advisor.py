@@ -34,8 +34,8 @@ from app.adapters.ai.contracts import (
 from app.adapters.ai.factory import build_advisors
 from app.core.config import Settings
 from app.data.rule_catalog import get_engine
-from app.domain.classification import ClassificationEngine, ClassificationMethod
-from app.domain.enums import ActivityType, Ifrs18Category
+from app.domain.classification import ClassificationEngine
+from app.domain.enums import ActivityType, ClassificationMethod, Ifrs18Category
 from app.domain.rules import ClassifiableItem, EntityFacts
 
 CONFIG = AdvisorConfig(
@@ -245,6 +245,11 @@ def test_the_request_constrains_the_answer_to_a_schema() -> None:
     output_config = client.calls[0]["output_config"]
     assert output_config["format"]["schema"] == CLASSIFICATION_SCHEMA.schema
     assert "UNCLASSIFIED" not in output_config["format"]["schema"]["properties"]["category"]["enum"]
+    # Exactly the keys the SDK's json_schema format defines. An extra one is a
+    # 400, and a 400 here degrades to "no suggestion" — a broken request that
+    # looks like a model with nothing to say.
+    assert set(output_config["format"]) == {"type", "schema"}
+    assert set(output_config) == {"effort", "format"}
     assert client.calls[0]["model"] == "claude-opus-5"
 
 
@@ -387,3 +392,43 @@ def test_a_configured_assistant_is_built(monkeypatch: pytest.MonkeyPatch) -> Non
 
     assert advisors.available is True
     assert advisors.account is not None
+
+
+# ---------------------------------------------------------------------------
+# The request has to be one the SDK actually accepts
+# ---------------------------------------------------------------------------
+
+
+def test_every_argument_the_advisor_sends_exists_on_the_real_sdk() -> None:
+    """A stub client accepts anything, which is what makes this worth checking.
+
+    `_call` wraps the request in a broad `except Exception`, because an
+    unreachable model must degrade to "a person looks at this line" rather than
+    fail an upload. The cost of that is real: a request the API rejects looks
+    exactly like a model with no opinion. So the shape is checked against the
+    installed SDK's own signature and typed parameters — the version bound in
+    pyproject — and drift shows up here instead of as an assistant that
+    mysteriously never suggests anything.
+    """
+    import inspect
+    import typing
+
+    import anthropic
+    from anthropic.types.json_output_format_param import JSONOutputFormatParam
+
+    # `type: ignore[attr-defined]`: absent from that module's `__all__`, and
+    # still the definitive statement of what the installed package accepts,
+    # which is the only thing this test is about.
+    from anthropic.types.message_create_params import (  # type: ignore[attr-defined]
+        OutputConfigParam,
+    )
+
+    client = StubClient(suggestion())
+    AnthropicClassificationAdvisor(client, CONFIG).suggest(item(), FACTS)
+    sent = client.calls[0]
+
+    accepted = set(inspect.signature(anthropic.Anthropic(api_key="x").messages.create).parameters)
+    assert set(sent) <= accepted, f"not accepted by the SDK: {set(sent) - accepted}"
+
+    assert set(sent["output_config"]) <= set(typing.get_type_hints(OutputConfigParam))
+    assert set(sent["output_config"]["format"]) <= set(typing.get_type_hints(JSONOutputFormatParam))

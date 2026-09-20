@@ -175,11 +175,13 @@ class AnthropicAdvisor:
                 # with, so no text in the document can widen the answer space.
                 output_config={
                     "effort": self._config.effort,
-                    "format": {
-                        "type": "json_schema",
-                        "name": spec.name,
-                        "schema": spec.schema,
-                    },
+                    # `type` and `schema` only. The SDK's json_schema format
+                    # carries no name field, and an unrecognised key is a 400 —
+                    # which `_call` would turn into "no suggestion", making a
+                    # broken request indistinguishable from a model with no
+                    # opinion. `spec.name` stays for the logs and the repair
+                    # message, where it is actually read.
+                    "format": {"type": "json_schema", "schema": spec.schema},
                 },
                 timeout=self._config.timeout_seconds,
             )

@@ -1,25 +1,53 @@
 # syntax=docker/dockerfile:1
-FROM python:3.12-slim AS base
 
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
+# Two stages, for one reason: the build needs a compiler and the runtime must
+# not have one. The dev extra (pytest, ruff, mypy, reportlab) is never
+# installed here either — a production image should not carry the tools that
+# test it (spec §31).
+
+FROM python:3.12-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
 
 WORKDIR /srv
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential curl \
+    && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml ./
 COPY app ./app
-RUN pip install --no-cache-dir -e ".[dev]"
+RUN python -m venv /opt/venv \
+    && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
+    && /opt/venv/bin/pip install --no-cache-dir ".[ai]"
 
+
+FROM python:3.12-slim AS runtime
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/opt/venv/bin:$PATH"
+
+WORKDIR /srv
+
+# curl is the healthcheck's only dependency; build-essential does not follow.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /opt/venv /opt/venv
+
+COPY app ./app
 COPY alembic.ini ./
 COPY alembic ./alembic
 
-# Do not run as root (spec §31).
-RUN useradd --create-home --uid 10001 appuser && chown -R appuser:appuser /srv
+# Do not run as root (spec §31). The upload directory is the one path the
+# process writes to, and it is created here so the container does not need a
+# writable /srv.
+RUN useradd --create-home --uid 10001 appuser \
+    && mkdir -p /srv/var/uploads \
+    && chown -R appuser:appuser /srv
 USER appuser
 
 EXPOSE 8000

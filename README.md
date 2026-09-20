@@ -12,9 +12,9 @@ audit trail, how and why operating profit changes.
 
 ## Status: the MVP flow runs end to end
 
-Phases 1–8 are complete: repository and tooling, the database schema,
-XLSX + CSV extraction with cell-level provenance and reconciliation against the
-source's own subtotals, account normalization against a catalog of 34 canonical
+Phases 1–9 are complete: repository and tooling, the database schema,
+XLSX + CSV + PDF extraction with cell-level provenance and reconciliation
+against the source's own subtotals, account normalization against a catalog of 34 canonical
 accounts and 198 synonyms, the IFRS 18 classification engine, statement reconstruction behind a
 reconciliation gate, impact analysis, and Excel export.
 
@@ -66,16 +66,34 @@ receivables with them. Left aggregated, the change would have read as zero.
 > routed to human review**. See
 > [`docs/07-ifrs18-source-verification.md`](docs/07-ifrs18-source-verification.md).
 
-Both adapters share one extraction pipeline (`app/adapters/ingest/grid.py`),
-so the format is transport only — a test asserts the two produce identical
-figures from the same statement. PDF (Phase 3c) plugs into the same grid.
+All three adapters share one extraction pipeline
+(`app/adapters/ingest/grid.py`), so the format is transport only — a test
+asserts XLSX, CSV and PDF produce identical figures, identical coverage and the
+same verdict from the same statement.
 
-No IFRS 18 classification exists yet; that is Phase 5.
+A PDF with no text layer is **refused**, not OCR'd: OCR misreads a digit
+silently, which is the one failure this product cannot have.
 
 > **Test fixtures are synthetic.** They imitate the shape of a K-IFRS
 > 손익계산서 but are not drawn from a real filing, so they validate the parser,
-> not the account dictionary or the rule set. Run `make fixture` to write them
+> not the account dictionary or the rule set. A statement we wrote cannot fail
+> its own arithmetic in an interesting way. Run `make fixture` to write them
 > out and inspect them.
+>
+> That gap closes with a real document, not with more tests — so the command
+> that consumes one is built and waiting:
+>
+> ```bash
+> make validate f=손익계산서.xlsx      # or .csv, or .pdf
+> ```
+>
+> No database, no network, so it runs on a file that may not be uploaded
+> anywhere. It reports whether the document's own subtotals reproduce, which
+> captions the dictionary did not recognise, which rules fired, what a reviewer
+> would be asked, and whether the validation gate opens — and exits non-zero
+> when the file would not produce a shippable result. The expected first
+> outcome on a real filing is a list of unrecognised captions, not a pass.
+> That list is the work item.
 
 IFRS 18 citations were verified on 2026-09-19 against IFRS Foundation and Big 4
 sources — see
@@ -137,7 +155,7 @@ Verified on 2026-09-19 against a live PostgreSQL 16 and both servers running:
 - The `audit_logs` append-only trigger rejects both UPDATE and DELETE
 - The landing page renders the §24 disclaimer **fetched from the API**, not a
   local copy
-- Backend: 919 tests pass, `ruff` clean, `mypy --strict` clean
+- Backend: 1,170 tests pass, `ruff` clean, `mypy --strict` clean
 - Total invariance is exact and unconfigurable: reclassification cannot change
   the sum of all income and expenses
 - The waterfall is derived from the same per-line movement the gate checks, so
@@ -171,11 +189,30 @@ Verified on 2026-09-19 against a live PostgreSQL 16 and both servers running:
 - The rule set, the dictionary and the active thresholds are served from the
   same files the engine runs on, unauthenticated, so the logic behind a number
   can always be read
+- A hostile caption cannot widen what the assistant may answer: the response is
+  constrained to an enum built from the domain's own categories, and a
+  suggestion that still fails validation after one repair is discarded — which
+  sends the line to a person, where it was going anyway
+- Nothing from an AI exchange reaches the logs: what is logged is its shape,
+  never a caption, a figure, or the model's words
+- The advisor's request is checked against the **installed** SDK's own
+  signature and typed parameters, because a rejected request would otherwise
+  look exactly like a model with no opinion
+- CI installs the built wheel with no dev extra and imports the application, so
+  a dependency the app needs but never declares fails there instead of in
+  production
 - Frontend: `eslint` clean, `tsc --noEmit` clean, production build succeeds,
   3 Playwright tests pass, `npm audit` reports 0 vulnerabilities
 
 Docker image builds are exercised in CI; they could not be run locally because
-the development sandbox has no Docker daemon.
+the development sandbox has no Docker daemon. The production install *was*
+verified locally, by building the wheel, installing it into an empty
+environment with no dev extra and importing the application — which is how
+`email-validator` was found missing from the declared dependencies. Without it
+`EmailStr` raises at import time and the production image could not start at
+all.
+
+Running it in production: [`docs/08-deployment.md`](docs/08-deployment.md).
 
 ---
 
@@ -210,6 +247,6 @@ Upload → Extract (with cell-level provenance)
 
 Next.js 16 · TypeScript (strict) · Tailwind · Recharts —
 FastAPI · Pydantic v2 · SQLAlchemy 2.0 · Alembic · PostgreSQL 16 —
-openpyxl · pandas · pdfplumber *(Phase 3)* — pytest · Playwright — Docker Compose
+openpyxl · pdfplumber — pytest · Playwright — Docker Compose
 
 Rationale for each choice is in [`docs/01-architecture.md`](docs/01-architecture.md) §4.

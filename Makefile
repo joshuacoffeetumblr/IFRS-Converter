@@ -27,6 +27,10 @@ up: ## Start the full stack (db, api, web)
 down: ## Stop the stack
 	docker compose down
 
+.PHONY: up-prod
+up-prod: ## Start the production stack (reads .env; every secret is required)
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
 .PHONY: migrate
 migrate: ## Apply database migrations
 	cd $(BACKEND) && .venv/bin/alembic upgrade head
@@ -60,6 +64,10 @@ e2e: ## Run Playwright end-to-end tests (requires the stack to be running)
 .PHONY: seed
 seed: ## Load the account catalog and IFRS 18 rule set into the database
 	cd $(BACKEND) && .venv/bin/python -m app.cli seed
+
+.PHONY: validate
+validate: ## Run a real statement through every stage: make validate f=statement.xlsx
+	cd $(BACKEND) && .venv/bin/python -m app.cli validate "$(abspath $(f))"
 
 .PHONY: demo
 demo: ## Run the whole pipeline over the fixture and write an Excel export

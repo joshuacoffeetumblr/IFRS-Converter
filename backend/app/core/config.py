@@ -161,17 +161,69 @@ class Settings(BaseSettings):
     def check_production_ready(self) -> None:
         """Fail fast on configuration that is only safe in development.
 
-        A generated signing key is fine locally — every restart invalidates
-        tokens, which is harmless. In production it means tokens do not survive
-        a deployment, and more importantly it means nobody set the key on
-        purpose. Refusing to start is better than discovering it later.
+        Every one of these is a default that is *correct* locally and dangerous
+        in production, which is the combination that ships. A misconfiguration
+        that stops the process is an outage; the same misconfiguration that
+        starts cleanly is an incident nobody notices, so this refuses to start
+        and names what to set.
+
+        Reported together rather than one at a time: an operator fixing a
+        deployment should learn everything that is wrong in one restart.
         """
         if self.environment != "production":
             return
+
+        problems: list[str] = []
+
+        # A generated signing key is fine locally — every restart invalidates
+        # tokens, which is harmless. In production it means nobody set the key
+        # on purpose, and tokens do not survive a deployment.
         if not os.environ.get("IFRS18_AUTH_SECRET_KEY"):
+            problems.append(
+                "IFRS18_AUTH_SECRET_KEY is unset, so the signing key is generated "
+                "per process. Set it to a secret of at least 32 characters."
+            )
+        elif len(self.auth.secret_key) < 32:
+            problems.append(
+                "IFRS18_AUTH_SECRET_KEY is shorter than 32 characters, which is "
+                "too short to sign tokens with."
+            )
+
+        # Debug responses carry tracebacks, and a traceback from this service
+        # quotes financial data (spec §32).
+        if self.debug:
+            problems.append("IFRS18_DEBUG is on, which exposes tracebacks. Set it to false.")
+
+        # The credentials in docker-compose and .env.example are published in
+        # this repository. Reaching production with them is not a weak password,
+        # it is a public one.
+        url = str(self.database_url)
+        if "ifrs18:ifrs18@" in url:
+            problems.append(
+                "IFRS18_DATABASE_URL still carries the development credentials, "
+                "which are published in this repository."
+            )
+
+        if not self.cors_origins:
+            problems.append("IFRS18_CORS_ORIGINS is empty, so the web app cannot call the API.")
+        for origin in self.cors_origins:
+            if origin == "*":
+                problems.append(
+                    "IFRS18_CORS_ORIGINS contains '*'. Credentialed requests carry "
+                    "financial data; name the web app's origin instead."
+                )
+            elif origin.startswith("http://") and not origin.startswith("http://localhost"):
+                problems.append(
+                    f"IFRS18_CORS_ORIGINS contains the plaintext origin {origin!r}. "
+                    "Uploads and exports must not travel over http in production."
+                )
+            elif origin.startswith("http://localhost"):
+                problems.append(f"IFRS18_CORS_ORIGINS contains the development origin {origin!r}.")
+
+        if problems:
             raise RuntimeError(
-                "IFRS18_AUTH_SECRET_KEY must be set in production; refusing to "
-                "start with a per-process signing key."
+                "Refusing to start in production. "
+                + " ".join(f"({index}) {text}" for index, text in enumerate(problems, start=1))
             )
 
     @property

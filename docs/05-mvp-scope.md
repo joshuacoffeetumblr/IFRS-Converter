@@ -106,11 +106,11 @@ waiting for PDF ingestion.
 | **0** | These design docs; Q1–Q7 answered | ✅ **approved 2026-09-19** (Q1, Q2, Q7 resolved; Q3–Q6 open, Phase 5 only) |
 | **1** | Monorepo, Docker Compose, FastAPI + Next.js skeleton, Postgres, Alembic, ruff/mypy/eslint, pytest, CI | `docker compose up` works; CI green on an empty test suite |
 | **2** | Full schema + migrations; domain money type; sign convention; repositories | Schema matches `02-erd.md`; round-trip tests pass |
-| **3a** | XLSX ingest with provenance + extraction reconciliation | ✅ done 2026-09-19 against synthetic fixtures; a **real** statement is still outstanding |
+| **3a** | XLSX ingest with provenance + extraction reconciliation | ✅ done 2026-09-19 against synthetic fixtures; a **real** statement is still outstanding — see §7 |
 | **3b** | CSV ingest | ✅ done 2026-09-19 — shares one pipeline with XLSX; Korean encodings (CP949/EUC-KR/BOM) handled |
-| **3c** | PDF ingest (text-based only) | *Cuttable without affecting §34* |
+| **3c** | PDF ingest (text-based only) | ✅ done 2026-09-20 — pdfplumber word coordinates grouped into rows by baseline and into columns by **page-wide bands**; per-row column indexing silently dropped every subtotal, because a subtotal carries no note reference and its figure landed in the note column. A PDF with no text layer is refused with a message saying so, never OCR'd. |
 | **4** | Normalization dictionary (Korean + English), synonyms, fuzzy matching, **note-based decomposition of aggregate captions (Q5)** | ✅ done 2026-09-19 — 100% without AI on both the canonical and the messy fixture; decomposition refuses components that do not sum to the caption |
-| **5** | **Rule engine, rule seed data with verified citations, company- and line-scoped `NEEDS_FACT` (Q4), AI advisor** | ✅ done 2026-09-19 — 10 cited rules, all `VERIFIED_SECONDARY`; the two with unconfirmed conditions force human review |
+| **5** | **Rule engine, rule seed data with verified citations, company- and line-scoped `NEEDS_FACT` (Q4), AI advisor** | ✅ done 2026-09-20 — 10 cited rules, all `VERIFIED_SECONDARY`; the two with unconfirmed conditions force human review. AI advisor added 2026-09-20: schema-constrained output built from the domain enums, one repair round trip, discarded if it still does not validate — and off unless a key and a switch are both set. |
 | **6** | Reconstruction, subtotals, reconciliation gate | ✅ done 2026-09-19 — total invariance exact on every fixture; the gate blocks on an unclassified line, an unanswered question, or a subtotal IFRS 18.73 forbids |
 | **7** | Impact: KPIs, waterfall, drivers | ✅ done 2026-09-19 — the waterfall is built from the movement the gate checks, so it sums to the delta by construction; measures IFRS 18 introduced report no "before" rather than a false zero |
 | **8** | Excel export (+ PDF if time) | ✅ done 2026-09-19 — six sheets incl. audit trail and reconciliation; a figure that would lose precision fails the export rather than shipping altered; unreconciled files are watermarked on every sheet. **PDF export not built** — Excel satisfies §34. |
@@ -119,6 +119,16 @@ waiting for PDF ingestion.
 **Phase 0 closed 2026-09-19.** Q1, Q2 and Q7 are resolved, so schema and
 impact-screen work is unblocked. Q3–Q6 remain open and block Phase 5 rule
 seeding only; Phases 1–4 proceed.
+
+### 4.1 Deployment
+
+| Item | State |
+|---|---|
+| Production image | ✅ two stages; the dev extra (pytest, ruff, mypy, reportlab) is not installed, and the compiler does not follow into the runtime |
+| Production compose overlay | ✅ `docker-compose.prod.yml` — every secret required with no default, no published database port, no source mounts, no `--reload` |
+| Refuse to start on a dangerous configuration | ✅ unset or short signing key, debug mode, the repository's own database credentials, and a wildcard / plaintext / localhost CORS origin — all reported at once |
+| CI: production install | ✅ builds the wheel, installs it with **no** dev extra, imports the app and runs the harness. This is how `email-validator` was found missing: `EmailStr` needs it at import time, the dev extra supplied it, and the production image could not import `app.main` at all |
+| CI: end-to-end | ✅ Playwright against a live API and the standalone Next build — not `next start`, which serves a different bundle from the one that was built |
 
 ## 5. Definition of done for the MVP
 
@@ -139,10 +149,34 @@ A single end-to-end Playwright test executing spec §34 verbatim:
 
 If that test passes, the MVP is done.
 
-## 6. Outstanding inputs needed
+## 6. Validating against a real statement
+
+Every number in this repository comes from a fixture we wrote, which means the
+one thing none of it proves is that the reader handles a document somebody else
+produced. A synthetic statement cannot fail extraction reconciliation in an
+interesting way: we built it to add up.
+
+That gap cannot be closed by writing more tests. It closes when an anonymised
+Korean filing is supplied. So the harness that consumes one exists now:
+
+    make validate f=손익계산서.xlsx
+    python -m app.cli validate 손익계산서.pdf --out report.md
+
+No database, no network, so it runs on a file that may not be uploaded
+anywhere. It reports, in pipeline order: whether the document's own subtotals
+reproduce (§17 — the check that actually matters), dictionary coverage **and
+the captions it did not recognise**, which rules fired, the facts a reviewer
+would be asked for, and whether the §19 gate opens. It exits non-zero when the
+file would not produce a shippable result.
+
+The expected first outcome on a real filing is a list of unrecognised captions,
+not a pass. That list is the work item.
+
+## 7. Outstanding inputs needed
 
 1. ~~Approve or amend this scope~~ — ✅ approved 2026-09-19.
 2. ~~Answer Q3–Q6~~ — ✅ all resolved 2026-09-19.
+3. **An anonymised Korean income statement.** Still outstanding, and the only item here that cannot be resolved from inside the repository — see §6.
 3. **Confirm access to the issued text of IFRS 18** (spec §25). Citations were
    verified on 2026-09-19 against IFRS Foundation and Big 4 sources and are
    recorded in `07-ifrs18-source-verification.md`, but the environment could not

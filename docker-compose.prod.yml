@@ -1,0 +1,73 @@
+# Production overlay.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# The base file is a development environment — reload on change, source mounted
+# read-only, debug logging, and credentials published in this repository. None
+# of that is a defect there and all of it is a defect here, so this file
+# replaces every one of them and supplies nothing itself: each secret comes
+# from the environment with no default, so a missing one fails the `up` rather
+# than quietly starting with the repository's own password.
+#
+# `IFRS18_ENVIRONMENT=production` additionally makes the API refuse to start on
+# a dangerous configuration (see `Settings.check_production_ready`): an unset
+# signing key, debug mode, the development database credentials, and a CORS
+# origin that is a wildcard, plaintext, or localhost.
+
+services:
+  db:
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+    # Not published. The database is reachable from the API container and from
+    # nowhere else; a mapped port on a host with a public interface is how a
+    # financial database ends up on the internet.
+    ports: !reset []
+    # The base file's healthcheck names the development user and database
+    # literally. Left alone it never goes healthy under other credentials, and
+    # because the API waits on `service_healthy`, the whole stack would hang
+    # with nothing in the logs saying why.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    environment:
+      IFRS18_ENVIRONMENT: production
+      IFRS18_DEBUG: "false"
+      IFRS18_LOG_LEVEL: ${IFRS18_LOG_LEVEL:-INFO}
+      IFRS18_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      IFRS18_CORS_ORIGINS: ${IFRS18_CORS_ORIGINS:?set IFRS18_CORS_ORIGINS to the web app's https origin}
+      IFRS18_AUTH_SECRET_KEY: ${IFRS18_AUTH_SECRET_KEY:?set IFRS18_AUTH_SECRET_KEY}
+      # The assistant is off unless both of these are set (spec §1): without
+      # them every line a rule cannot decide still reaches a person, which is
+      # where it was going anyway.
+      IFRS18_AI_ENABLED: ${IFRS18_AI_ENABLED:-false}
+      IFRS18_AI_API_KEY: ${IFRS18_AI_API_KEY:-}
+      IFRS18_UPLOAD_RETENTION_DAYS: ${IFRS18_UPLOAD_RETENTION_DAYS:-30}
+      IFRS18_UPLOAD_DIRECTORY: /srv/var/uploads
+    # `!override`, because compose *merges* volume lists rather than
+    # replacing them: without it the base file's read-only source mounts
+    # survive and the container runs the host's working tree instead of the
+    # image that was built and tested. No --reload either, for the same reason.
+    volumes: !override
+      - uploads:/srv/var/uploads
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports: !reset []
+    expose: ["8000"]
+    restart: unless-stopped
+
+  web:
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL to the API's https origin}
+    ports: !reset []
+    expose: ["3000"]
+    restart: unless-stopped
+
+volumes:
+  uploads:
