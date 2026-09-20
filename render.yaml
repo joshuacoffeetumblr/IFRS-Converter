@@ -15,6 +15,11 @@ databases:
     user: ifrs18
     plan: free
     postgresMajorVersion: "16"
+    # Must match the services'. A database's internal connection string only
+    # resolves from inside its own region, so a database left in the default
+    # region while the API sits in another cannot be reached at all — the API
+    # starts, fails every health check, and the deploy is marked failed.
+    region: singapore
 
 services:
   # ---------------------------------------------------------------- API ----
