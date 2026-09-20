@@ -74,6 +74,14 @@ same verdict from the same statement.
 A PDF with no text layer is **refused**, not OCR'd: OCR misreads a digit
 silently, which is the one failure this product cannot have.
 
+> **Validated against a real filing on 2026-09-20** — Samsung Electronics'
+> 2026 half-year DART XBRL. All five §17 reconciliation checks agree to the
+> won, on figures the filing prints entirely unsigned; dictionary coverage
+> 100%. The gate correctly stays shut on four aggregate captions pending note
+> decomposition, which is what IFRS 18 exists to look inside. Three defects
+> were found getting there, all one root cause: every caption table in the
+> ingest layer was Korean-only. See `docs/05-mvp-scope.md` §6.0.
+
 > **Test fixtures are synthetic.** They imitate the shape of a K-IFRS
 > 손익계산서 but are not drawn from a real filing, so they validate the parser,
 > not the account dictionary or the rule set. A statement we wrote cannot fail
@@ -180,6 +188,10 @@ Verified on 2026-09-19 against a live PostgreSQL 16 and both servers running:
 - Won-scale figures survive exactly: 15-digit integers with no presentation
   unit, which is where a reader that goes through binary floating point starts
   returning numbers nobody wrote
+- An English-captioned filing is read, not refused: subtotals are recognised
+  exactly (so `Profit from disposal of investments` never becomes one), and a
+  parenthetical qualifier never turns income into a deduction — `Share of
+  profit (loss) of associates` is a gain
 - An AI-suggested business activity cannot unblock a rule: unconfirmed reads as
   *unknown* to the engine, and the database refuses to store it as confirmed
 - Answering a question re-runs classification immediately, and `NOT_SURE` is

@@ -87,13 +87,45 @@ SUBTOTAL_CAPTION_STEMS: tuple[str, ...] = (
     "기타포괄손익",
 )
 
+#: The same thing in English, and matched **exactly** rather than by prefix.
+#: Korean subtotals carry their qualifiers as suffixes, so a prefix match is
+#: what recognises 영업이익(손실). English does not behave that way:
+#: `Profit (loss)` reduces to `profit`, and refusing every caption starting
+#: with it would throw away `Profit from disposal of investments`, which is an
+#: ordinary account.
+SUBTOTAL_CAPTIONS_EN: tuple[str, ...] = (
+    "gross profit",
+    "gross loss",
+    "gross profit (loss)",
+    "operating profit",
+    "operating income",
+    "operating loss",
+    "operating income (loss)",
+    "profit before tax",
+    "loss before tax",
+    "profit (loss) before tax",
+    "profit or loss before tax",
+    "profit before income tax",
+    "profit (loss)",
+    "profit or loss",
+    "profit for the period",
+    "loss for the period",
+    "profit (loss) for the period",
+    "net income",
+    "profit (loss) from continuing operations",
+    "total comprehensive income",
+    "other comprehensive income",
+)
+
 
 def is_subtotal_caption(label: str) -> bool:
     """Whether a caption denotes a subtotal rather than an account."""
     compact = normalize_label(label)
     if not compact:
         return False
-    return any(compact.startswith(normalize_label(stem)) for stem in SUBTOTAL_CAPTION_STEMS)
+    if any(compact.startswith(normalize_label(stem)) for stem in SUBTOTAL_CAPTION_STEMS):
+        return True
+    return any(compact == normalize_label(caption) for caption in SUBTOTAL_CAPTIONS_EN)
 
 
 @dataclass(frozen=True, slots=True)

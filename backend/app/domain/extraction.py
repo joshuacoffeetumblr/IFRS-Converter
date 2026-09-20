@@ -13,6 +13,7 @@ the only honest outcome.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field, fields, replace
 from decimal import Decimal
 
@@ -230,9 +231,36 @@ _EXPENSE_MARKERS: tuple[str, ...] = (
 )
 
 
+#: The same thing in English, for a filing captioned from the IFRS taxonomy.
+#: Compared after spaces are removed, so multi-word markers appear joined.
+_EXPENSE_MARKERS_EN: tuple[str, ...] = (
+    "costofsales",
+    "costofgoodssold",
+    "costofrevenue",
+    "expense",
+    "cost",
+    "loss",
+    "impairment",
+    "depreciation",
+    "amortis",
+    "amortiz",
+    "writedown",
+    "writeoff",
+    "provisionfor",
+)
+
+#: Dropped before an English caption is tested. IFRS labels use a parenthetical
+#: to make a caption sign-neutral — `Share of profit (loss) of associates` is
+#: income — so matching `loss` inside one would flip a gain to a deduction. In
+#: Korean the qualifier works the same way: 당기순이익(손실).
+_PARENTHETICAL = re.compile(r"[(（][^)）]*[)）]")
+
+
 def _looks_like_expense(label: str) -> bool:
-    compact = label.replace(" ", "")
-    return any(marker in compact for marker in _EXPENSE_MARKERS)
+    compact = _PARENTHETICAL.sub("", label).replace(" ", "")
+    if any(marker in compact for marker in _EXPENSE_MARKERS):
+        return True
+    return any(marker in compact.casefold() for marker in _EXPENSE_MARKERS_EN)
 
 
 def infer_signs_from_subtotals(

@@ -1,5 +1,5 @@
 {
-  "version": "2026.09.1",
+  "version": "2026.09.2",
   "note": "Canonical income-statement accounts for Korean filings (spec §4 step 3). Data, not code, so an accountant can review and diff it without reading Python. 'ambiguous_by_default' marks aggregate captions whose contents cannot be inferred from the caption alone; they always reach human review and are candidates for note-based decomposition (open question Q5).",
   "accounts": [
     {
@@ -19,7 +19,7 @@
       "label_en": "Selling, general and administrative expenses",
       "section": "PL", "nature": "EXPENSE",
       "synonyms_ko": ["판매비와관리비", "판매비및관리비", "판매관리비", "판관비", "판매비와일반관리비"],
-      "synonyms_en": ["Selling and administrative expenses", "SG&A", "Administrative expenses"]
+      "synonyms_en": ["Selling and administrative expenses", "SG&A", "Administrative expenses", "Selling general administrative expenses", "Selling, general and administrative expense"]
     },
     {
       "code": "EMPLOYEE_BENEFITS", "label_ko": "급여", "label_en": "Employee benefits",
@@ -69,13 +69,13 @@
       "code": "OTHER_INCOME", "label_ko": "기타수익", "label_en": "Other income",
       "section": "PL", "nature": "INCOME", "ambiguous_by_default": true,
       "synonyms_ko": ["기타수익", "기타영업외수익", "잡이익", "기타의수익"],
-      "synonyms_en": ["Other income", "Miscellaneous income"]
+      "synonyms_en": ["Other income", "Miscellaneous income", "Other gains", "Other operating income"]
     },
     {
       "code": "OTHER_EXPENSES", "label_ko": "기타비용", "label_en": "Other expenses",
       "section": "PL", "nature": "EXPENSE", "ambiguous_by_default": true,
       "synonyms_ko": ["기타비용", "기타영업외비용", "잡손실", "기타의비용"],
-      "synonyms_en": ["Other expenses", "Miscellaneous expenses"]
+      "synonyms_en": ["Other expenses", "Miscellaneous expenses", "Other losses", "Other operating expenses"]
     },
     {
       "code": "NON_OPERATING_INCOME", "label_ko": "영업외수익",
@@ -95,13 +95,13 @@
       "code": "FINANCE_INCOME", "label_ko": "금융수익", "label_en": "Finance income",
       "section": "PL", "nature": "INCOME", "ambiguous_by_default": true,
       "synonyms_ko": ["금융수익", "금융이익"],
-      "synonyms_en": ["Finance income", "Financial income"]
+      "synonyms_en": ["Finance income", "Financial income", "Financial revenue"]
     },
     {
       "code": "FINANCE_COSTS", "label_ko": "금융비용", "label_en": "Finance costs",
       "section": "PL", "nature": "EXPENSE", "ambiguous_by_default": true,
       "synonyms_ko": ["금융비용", "금융원가", "금융손실"],
-      "synonyms_en": ["Finance costs", "Financial expenses"]
+      "synonyms_en": ["Finance costs", "Financial expenses", "Finance cost", "Financial costs"]
     },
 
     {
@@ -139,7 +139,7 @@
       "label_en": "Share of profit of associates and joint ventures",
       "section": "PL", "nature": "INCOME",
       "synonyms_ko": ["지분법이익", "지분법손익", "관계기업투자이익", "지분법평가이익", "관계기업및공동기업투자이익"],
-      "synonyms_en": ["Share of profit of associates", "Equity method income", "Share of results of associates"]
+      "synonyms_en": ["Share of profit of associates", "Equity method income", "Share of results of associates", "Share of profit (loss) of associates and joint ventures accounted for using equity method", "Share of profit (loss) of associates accounted for using equity method", "Share of profit of associates and joint ventures"]
     },
     {
       "code": "SHARE_OF_LOSS_OF_ASSOCIATES", "label_ko": "지분법손실",
@@ -210,7 +210,7 @@
       "code": "INCOME_TAX_EXPENSE", "label_ko": "법인세비용", "label_en": "Income tax expense",
       "section": "PL", "nature": "EXPENSE",
       "synonyms_ko": ["법인세비용", "법인세등", "법인세비용(수익)", "계속영업법인세비용"],
-      "synonyms_en": ["Income tax expense", "Corporate income tax", "Tax expense"]
+      "synonyms_en": ["Income tax expense", "Corporate income tax", "Tax expense", "Tax expense (income)"]
     },
     {
       "code": "DISCONTINUED_OPERATIONS_RESULT", "label_ko": "중단영업손익",

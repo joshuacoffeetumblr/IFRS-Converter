@@ -172,6 +172,47 @@ file would not produce a shippable result.
 The expected first outcome on a real filing is a list of unrecognised captions,
 not a pass. That list is the work item.
 
+### 6.0 Validated against a real filing — 2026-09-20
+
+Samsung Electronics' 2026 half-year DART filing (entity `00126380`), as XBRL:
+instance, schema, presentation, calculation and English label linkbases. The
+consolidated income statement (role `D310000`, 기능별) was taken from the
+presentation linkbase, its figures from the `CFY2026dHYA` consolidated context,
+and its captions from the filing's own English label linkbase.
+
+**Result: extraction reconciles exactly.** All five §17 checks agree to the
+won, on figures the filing prints entirely unsigned — the signs were derived
+and then proved against its own subtotals (§16). Dictionary coverage 100% on
+all nine detail lines, total invariance holds.
+
+**The gate correctly stays shut.** `Other gains`, `Other losses`,
+`Finance income` and `Finance costs` remain UNCLASSIFIED pending note-based
+decomposition — which is the right answer, because those four aggregates are
+exactly what IFRS 18 exists to look inside. The filing's own notes (roles
+`D834320`, `D834330`) contain the breakdown.
+
+Three defects were found and fixed getting there, all the same root cause:
+**every caption table in the ingest layer was Korean-only**, while the product
+claims Korean + English. They fail in a chain.
+
+| Table | Consequence |
+|---|---|
+| `classify_subtotal` | No English subtotal recognised → the statement had **no subtotals** → its own arithmetic could never be checked → refused as unreadable (§17), however perfectly extracted |
+| account dictionary | The four unrecognised subtotals then went through account matching as ordinary lines, so coverage read **46%** when the real figure was 100% |
+| `_looks_like_expense` | No English deduction recognised → a filing printing every figure unsigned, which is the Korean convention and unaffected by English captions, could never have its signs derived |
+
+Two things the fix had to get right. English subtotals are matched
+**exactly**, not by prefix: `Profit (loss)` reduces to `profit`, and prefix
+matching would make a subtotal of `Profit from disposal of investments` —
+silently adding a detail line to the total it was there to verify. And a
+parenthetical qualifier is stripped before testing for a deduction, because
+IFRS labels use it to make a caption sign-neutral: `Share of profit (loss) of
+associates` is income, and matching `loss` inside it would have turned a
+₩484bn gain into a deduction of the same size.
+
+The English synonyms added are the IFRS taxonomy's own standard labels, taken
+from the filing's label linkbase rather than guessed.
+
 ### 6.1 What asking the question already found
 
 Before a real file arrived, asking "what about 삼성전자's statement?" was enough

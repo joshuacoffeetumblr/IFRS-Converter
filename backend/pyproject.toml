@@ -110,6 +110,7 @@ ignore = [
 # `ruff format` decodes \uXXXX escapes back to literal characters.
 "app/domain/money.py" = ["RUF001"]
 "app/domain/accounts.py" = ["RUF001", "RUF003"]
+"app/domain/extraction.py" = ["RUF001"]
 "tests/test_accounts.py" = ["RUF001", "RUF003"]
 "tests/test_catalog.py" = ["RUF001", "RUF003"]
 "tests/test_classification.py" = ["RUF001", "RUF003"]

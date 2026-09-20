@@ -34,19 +34,49 @@ from app.domain.money import (
 #: Captions identifying a row as a subtotal printed by the source. Ordered so
 #: the longest, most specific caption is tested first — otherwise
 #: 법인세차감전순이익 would be matched as 당기순이익.
-SUBTOTAL_CAPTIONS: tuple[tuple[str, SubtotalKind], ...] = (
-    ("법인세비용차감전순이익", SubtotalKind.PROFIT_BEFORE_TAX),
-    ("법인세차감전계속영업이익", SubtotalKind.PROFIT_BEFORE_TAX),
-    ("법인세차감전순이익", SubtotalKind.PROFIT_BEFORE_TAX),
-    ("법인세차감전순손실", SubtotalKind.PROFIT_BEFORE_TAX),
-    ("매출총이익", SubtotalKind.GROSS_PROFIT),
-    ("매출총손실", SubtotalKind.GROSS_PROFIT),
-    ("영업이익", SubtotalKind.REPORTED_OPERATING_PROFIT),
-    ("영업손실", SubtotalKind.REPORTED_OPERATING_PROFIT),
-    ("당기순이익", SubtotalKind.PROFIT_FOR_THE_PERIOD),
-    ("당기순손실", SubtotalKind.PROFIT_FOR_THE_PERIOD),
-    ("반기순이익", SubtotalKind.PROFIT_FOR_THE_PERIOD),
-    ("분기순이익", SubtotalKind.PROFIT_FOR_THE_PERIOD),
+#:
+#: The third field says whether a caption may match as a **prefix**. Korean
+#: subtotals carry their qualifiers as suffixes, so a prefix match is what
+#: recognises 영업이익(손실) and 당기순이익 귀속분. English captions do not
+#: behave that way: `Profit (loss)` reduces to `profit`, and prefix-matching
+#: that would make a subtotal of `Profit from disposal of investments` —
+#: a detail line, silently added to the total it was supposed to verify.
+SUBTOTAL_CAPTIONS: tuple[tuple[str, SubtotalKind, bool], ...] = (
+    ("법인세비용차감전순이익", SubtotalKind.PROFIT_BEFORE_TAX, True),
+    ("법인세차감전계속영업이익", SubtotalKind.PROFIT_BEFORE_TAX, True),
+    ("법인세차감전순이익", SubtotalKind.PROFIT_BEFORE_TAX, True),
+    ("법인세차감전순손실", SubtotalKind.PROFIT_BEFORE_TAX, True),
+    ("매출총이익", SubtotalKind.GROSS_PROFIT, True),
+    ("매출총손실", SubtotalKind.GROSS_PROFIT, True),
+    ("영업이익", SubtotalKind.REPORTED_OPERATING_PROFIT, True),
+    ("영업손실", SubtotalKind.REPORTED_OPERATING_PROFIT, True),
+    ("당기순이익", SubtotalKind.PROFIT_FOR_THE_PERIOD, True),
+    ("당기순손실", SubtotalKind.PROFIT_FOR_THE_PERIOD, True),
+    ("반기순이익", SubtotalKind.PROFIT_FOR_THE_PERIOD, True),
+    ("분기순이익", SubtotalKind.PROFIT_FOR_THE_PERIOD, True),
+    # The IFRS taxonomy's own standard labels, which is what a filing prints
+    # in English and what an XBRL-derived statement carries. Without these a
+    # statement captioned in English has no subtotals at all — so its own
+    # arithmetic can never be checked, and it is refused as unreadable (§17)
+    # however well it was extracted.
+    ("profit (loss) before tax", SubtotalKind.PROFIT_BEFORE_TAX, False),
+    ("profit or loss before tax", SubtotalKind.PROFIT_BEFORE_TAX, False),
+    ("profit before tax", SubtotalKind.PROFIT_BEFORE_TAX, False),
+    ("loss before tax", SubtotalKind.PROFIT_BEFORE_TAX, False),
+    ("profit before income tax", SubtotalKind.PROFIT_BEFORE_TAX, False),
+    ("gross profit", SubtotalKind.GROSS_PROFIT, False),
+    ("gross loss", SubtotalKind.GROSS_PROFIT, False),
+    ("operating profit", SubtotalKind.REPORTED_OPERATING_PROFIT, False),
+    ("operating income", SubtotalKind.REPORTED_OPERATING_PROFIT, False),
+    ("operating loss", SubtotalKind.REPORTED_OPERATING_PROFIT, False),
+    ("operating income (loss)", SubtotalKind.REPORTED_OPERATING_PROFIT, False),
+    ("profit (loss)", SubtotalKind.PROFIT_FOR_THE_PERIOD, False),
+    ("profit or loss", SubtotalKind.PROFIT_FOR_THE_PERIOD, False),
+    ("profit for the period", SubtotalKind.PROFIT_FOR_THE_PERIOD, False),
+    ("loss for the period", SubtotalKind.PROFIT_FOR_THE_PERIOD, False),
+    ("profit (loss) for the period", SubtotalKind.PROFIT_FOR_THE_PERIOD, False),
+    ("net income", SubtotalKind.PROFIT_FOR_THE_PERIOD, False),
+    ("profit (loss) from continuing operations", SubtotalKind.PROFIT_FOR_THE_PERIOD, False),
 )
 
 #: Sheet or file names suggesting an income statement.
@@ -109,9 +139,9 @@ def classify_subtotal(label: str) -> SubtotalKind | None:
     compact = normalize_label(label)
     if not compact:
         return None
-    for caption, kind in SUBTOTAL_CAPTIONS:
+    for caption, kind, allow_prefix in SUBTOTAL_CAPTIONS:
         canonical = normalize_label(caption)
-        if compact == canonical or compact.startswith(canonical):
+        if compact == canonical or (allow_prefix and compact.startswith(canonical)):
             return kind
     return None
 
