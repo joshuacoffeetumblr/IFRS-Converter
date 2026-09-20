@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,3 +27,13 @@ class AccountRepository:
             )
         )
         return result.scalar_one_or_none()
+
+    async def by_codes(self, codes: Iterable[str]) -> dict[str, NormalizedAccount]:
+        """Several accounts at once, so a classification run makes one query."""
+        wanted = list(dict.fromkeys(codes))
+        if not wanted:
+            return {}
+        result = await self._session.execute(
+            select(NormalizedAccount).where(NormalizedAccount.code.in_(wanted))
+        )
+        return {account.code: account for account in result.scalars().all()}

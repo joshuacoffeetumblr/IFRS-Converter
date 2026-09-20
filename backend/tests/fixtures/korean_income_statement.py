@@ -83,6 +83,47 @@ STATEMENT_ROWS: tuple[Row, ...] = (
 )
 
 
+#: A statement that makes the rule engine ask questions. Every line here is one
+#: the standard cannot classify from its caption alone:
+#:   이자수익        depends on whether investing in assets is a main business
+#:                  activity (IFRS 18 paragraphs 49-50)
+#:   외환차익        follows the item that produced it (B65) — a per-line fact
+#:   파생상품평가이익  follows the risk the instrument manages (B72) — per line
+#: The arithmetic reconciles the same way the main fixture's does:
+#:   영업이익             = 1,000,000 - 700,000 - 180,000        = 120,000
+#:   법인세차감전순이익    = 120,000 + 6,000 + 3,000 + 2,000 - 14,000 = 117,000
+#:   당기순이익           = 117,000 - 25,740                     =  91,260
+FACT_STATEMENT_ROWS: tuple[Row, ...] = (
+    Row("매출액", Decimal("1000000")),
+    Row("매출원가", Decimal("-700000")),
+    Row("매출총이익", Decimal("300000"), is_subtotal=True, subtotal_kind=SubtotalKind.GROSS_PROFIT),
+    Row("판매비와관리비", Decimal("-180000")),
+    Row(
+        "영업이익",
+        Decimal("120000"),
+        is_subtotal=True,
+        subtotal_kind=SubtotalKind.REPORTED_OPERATING_PROFIT,
+    ),
+    Row("이자수익", Decimal("6000"), depth=1, note="주석 25"),
+    Row("외환차익", Decimal("3000"), depth=1, note="주석 27"),
+    Row("파생상품평가이익", Decimal("2000"), depth=1, note="주석 28"),
+    Row("금융비용", Decimal("-14000"), depth=1, note="주석 25"),
+    Row(
+        "법인세차감전순이익",
+        Decimal("117000"),
+        is_subtotal=True,
+        subtotal_kind=SubtotalKind.PROFIT_BEFORE_TAX,
+    ),
+    Row("법인세비용", Decimal("-25740"), note="주석 26"),
+    Row(
+        "당기순이익",
+        Decimal("91260"),
+        is_subtotal=True,
+        subtotal_kind=SubtotalKind.PROFIT_FOR_THE_PERIOD,
+    ),
+)
+
+
 def _render(amount: Decimal, style: SignStyle) -> str | Decimal:
     if amount >= 0:
         return amount
@@ -101,6 +142,7 @@ def build_workbook(
     sheet_name: str = "손익계산서",
     include_comparative: bool = True,
     labels: dict[str, str] | None = None,
+    rows: tuple[Row, ...] = STATEMENT_ROWS,
 ) -> Path:
     """Write a synthetic statement and return its path."""
     workbook = Workbook()
@@ -127,7 +169,7 @@ def build_workbook(
     for column in range(1, 5 if include_comparative else 4):
         sheet.cell(row=header_row, column=column).font = Font(bold=True)
 
-    for offset, row in enumerate(STATEMENT_ROWS):
+    for offset, row in enumerate(rows):
         excel_row = header_row + 1 + offset
         printed_label = (labels or {}).get(row.label, row.label)
         label_cell = sheet.cell(row=excel_row, column=1, value=printed_label)
@@ -167,6 +209,11 @@ MESSY_LABELS: dict[str, str] = {
     "법인세비용": "법인세등",
     "당기순이익": "Ⅶ. 당기순이익",
 }
+
+
+def build_fact_workbook(path: Path, **kwargs: object) -> Path:
+    """A statement whose lines the rules cannot decide without asking."""
+    return build_workbook(path, rows=FACT_STATEMENT_ROWS, **kwargs)  # type: ignore[arg-type]
 
 
 def build_messy_workbook(path: Path, **kwargs: object) -> Path:

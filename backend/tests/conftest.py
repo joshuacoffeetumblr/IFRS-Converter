@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Iterator
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
@@ -31,6 +32,31 @@ async def client(app: FastAPI) -> AsyncIterator[AsyncClient]:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+
+
+@pytest.fixture()
+def uploads_dir(tmp_path: Path, settings: Settings) -> Iterator[Path]:
+    """Point file storage at a scratch directory instead of the working tree."""
+    original = settings.upload.directory
+    settings.upload.directory = tmp_path / "uploads"
+    yield settings.upload.directory
+    settings.upload.directory = original
+
+
+@pytest.fixture()
+def statement_bytes(tmp_path: Path) -> bytes:
+    """A synthetic Korean income statement, as uploaded bytes."""
+    from tests.fixtures.korean_income_statement import build_workbook
+
+    return build_workbook(tmp_path / "source.xlsx").read_bytes()
+
+
+@pytest.fixture()
+def fact_statement_bytes(tmp_path: Path) -> bytes:
+    """A statement whose lines the rules cannot decide without asking."""
+    from tests.fixtures.korean_income_statement import build_fact_workbook
+
+    return build_fact_workbook(tmp_path / "facts.xlsx").read_bytes()
 
 
 @pytest_asyncio.fixture

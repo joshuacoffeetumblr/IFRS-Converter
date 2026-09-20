@@ -1,0 +1,50 @@
+{
+  "version": "2026.09.1",
+  "note": "The questions a NEEDS_FACT rule raises (spec §5). Data rather than code for the same reason the rules are: the wording is what the user actually decides on, and it must be reviewable — and translatable — without reading Python. Each entry names the rule that raises it and the fact it settles. A rule whose question_key is missing from this file is a load-time failure, not a blank prompt at review time.",
+  "questions": [
+    {
+      "question_key": "SMBA_INVESTING_IN_ASSETS",
+      "scope": "COMPANY",
+      "activity_type": "INVESTING_IN_ASSETS",
+      "raised_by_rule_ids": ["IFRS18-INVESTING-002", "IFRS18-INVESTING-003"],
+      "question_text_ko": "이 기업에서 자산에 대한 투자가 주된 영업활동입니까? 투자부동산, 금융자산 등에 투자하여 얻는 수익이 기업의 주된 수익원인 경우에 해당합니다.",
+      "question_text_en": "Is investing in assets a main business activity of this entity? This applies where income from investing in assets — investment property, financial assets — is a principal source of the entity's income.",
+      "help_ko": "산업분류코드로 판단하지 마십시오. 사업보고서의 사업의 내용, 수익 구성, 영업부문 공시를 근거로 확인해야 합니다 (IFRS 18 B30: 주된 영업활동은 둘 이상일 수 있습니다).",
+      "help_en": "Do not decide this from an industry code. Confirm it against the entity's own description of its operations, its revenue composition and its segment disclosures (IFRS 18 B30: an entity may have more than one main business activity).",
+      "answers": ["YES", "NO", "NOT_SURE"]
+    },
+    {
+      "question_key": "SMBA_PROVIDING_FINANCING_TO_CUSTOMERS",
+      "scope": "COMPANY",
+      "activity_type": "PROVIDING_FINANCING_TO_CUSTOMERS",
+      "raised_by_rule_ids": ["IFRS18-FINANCING-001"],
+      "question_text_ko": "이 기업에서 고객에 대한 금융 제공이 주된 영업활동입니까? 여신, 할부금융, 리스 등을 통해 고객에게 자금을 제공하는 것이 주된 사업인 경우에 해당합니다.",
+      "question_text_en": "Is providing financing to customers a main business activity of this entity? This applies where lending, instalment finance or leasing to customers is a principal business.",
+      "help_ko": "이 답변은 손익 표시 전반에 영향을 미칩니다. 고객에 대한 금융 제공이 주된 영업활동인 기업은 '재무·법인세차감전이익' 소계를 표시할 수 없습니다 (IFRS 18 문단 73).",
+      "help_en": "This answer affects the statement as a whole: an entity whose main business activity is providing financing to customers is prohibited from presenting the 'profit before financing and income taxes' subtotal (IFRS 18 paragraph 73).",
+      "answers": ["YES", "NO", "NOT_SURE"]
+    },
+    {
+      "question_key": "FX_UNDERLYING_ITEM",
+      "scope": "LINE",
+      "raised_by_rule_ids": ["IFRS18-FX-001"],
+      "question_text_ko": "이 외환차이를 발생시킨 항목은 어느 범주에 속합니까? 외환차이는 그 원인이 된 항목과 같은 범주로 분류합니다.",
+      "question_text_en": "Which category does the item that gave rise to this foreign exchange difference belong to? An exchange difference is classified in the same category as the item that produced it.",
+      "help_ko": "매출채권·매입채무에서 발생한 외환차이는 영업, 차입금에서 발생한 외환차이는 재무입니다. 원인 항목을 추적하는 데 과도한 원가나 노력이 드는 경우에는 영업으로 분류합니다 (IFRS 18 문단 B65).",
+      "help_en": "An exchange difference on a trade receivable or payable is operating; one on borrowings is financing. Where identifying the underlying item would involve undue cost or effort, the difference is classified in operating (IFRS 18 paragraph B65).",
+      "answers": ["YES", "NOT_SURE"],
+      "allows_undue_cost_or_effort": true
+    },
+    {
+      "question_key": "DERIVATIVE_RISK_MANAGED",
+      "scope": "LINE",
+      "raised_by_rule_ids": ["IFRS18-DERIV-001"],
+      "question_text_ko": "이 파생상품이 관리하는 위험은 어느 범주의 손익에 영향을 미칩니까? 파생상품 손익은 그 위험이 영향을 미치는 항목과 같은 범주로 분류합니다.",
+      "question_text_en": "Which category of income and expenses is affected by the risk this derivative is used to manage? Gains and losses on the derivative are classified in that same category.",
+      "help_ko": "원자재 가격 위험을 관리하는 파생상품은 영업, 이자율 위험을 관리하는 파생상품은 재무입니다. 적용에 총액 표시가 필요하거나 과도한 원가 또는 노력이 드는 경우에는 해당 파생상품의 모든 손익을 영업으로 분류합니다 (IFRS 18 문단 B72).",
+      "help_en": "A derivative managing commodity price risk is operating; one managing interest rate risk is financing. Where applying this would require grossing up gains and losses, or would involve undue cost or effort, all gains and losses on the derivative are classified in operating (IFRS 18 paragraph B72).",
+      "answers": ["YES", "NOT_SURE"],
+      "allows_undue_cost_or_effort": true
+    }
+  ]
+}

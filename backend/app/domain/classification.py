@@ -273,6 +273,16 @@ class ClassificationEngine:
     def rules(self) -> tuple[ClassificationRuleSpec, ...]:
         return self._rules
 
+    @property
+    def has_advisor(self) -> bool:
+        """Whether an AI advisor is actually wired up.
+
+        Worth asking: with the null advisor in place, requesting AI assistance
+        changes nothing, and an API that accepted the request silently would
+        leave a caller believing a model had looked at their statement.
+        """
+        return not isinstance(self._advisor, NullClassificationAdvisor)
+
     # -- rule evaluation ---------------------------------------------------
 
     def evaluate(self, item: ClassifiableItem, facts: EntityFacts) -> RuleOutcome:
@@ -300,10 +310,27 @@ class ClassificationEngine:
                 )
 
             if rule.requires_line_fact is not None:
+                fact = facts.line_fact(item.line_id, rule.requires_line_fact)
+                if fact is None:
+                    return RuleOutcome(
+                        status=RuleStatus.NEEDS_FACT,
+                        rule_id=rule.rule_id,
+                        required_line_fact=rule.requires_line_fact,
+                    )
+                # The standard's relief, not a shrug: the user has said that
+                # tracing the underlying item would require grossing up or is
+                # impracticable, and B65/B72 send exactly that case to
+                # operating.
+                outcome = rule.undue_cost_outcome if fact.undue_cost_or_effort else None
+                if outcome is None:
+                    assert fact.category is not None  # guaranteed by is_answered
+                    outcome = Outcome(category=fact.category, subcategory=fact.subcategory)
                 return RuleOutcome(
-                    status=RuleStatus.NEEDS_FACT,
+                    status=RuleStatus.MATCH,
                     rule_id=rule.rule_id,
-                    required_line_fact=rule.requires_line_fact,
+                    category=outcome.category,
+                    subcategory=outcome.subcategory,
+                    requires_human_review=rule.requires_human_review,
                 )
 
             assert rule.outcome is not None  # guaranteed by validate()

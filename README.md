@@ -21,12 +21,15 @@ reconciliation gate, impact analysis, and Excel export.
 The analytical core is complete and driven end to end by
 `app/services/pipeline.py`.
 
-The REST API is being built on top of it: authentication, projects, and the
-RFC 9457 error contract, then file upload, extraction and line correction —
-uploads are sniffed rather than trusted, deduplicated by SHA-256, and every
-extracted line reaches the client with its source cell and the reconciliation
-that verified it. The remaining endpoints (classify, review, finalize,
-statement, impact, export) and the frontend screens are the next work — see
+The REST API is being built on top of it: authentication and projects, then
+file upload, extraction and line correction — uploads are sniffed rather than
+trusted, deduplicated by SHA-256, and every extracted line reaches the client
+with its source cell and the reconciliation that verified it — and now
+classification and human review. The engine proposes and a person decides: a
+re-run never discards a human decision, an override without a reason is
+refused, and the questions the rules raise carry what turns on the answer. The
+remaining endpoints (finalize, statement, impact, export) and the frontend
+screens are the next work — see
 [`docs/03-api-specification.md`](docs/03-api-specification.md) for what is
 built and what is not.
 
@@ -147,6 +150,13 @@ Verified on 2026-09-19 against a live PostgreSQL 16 and both servers running:
   rejected upload leaves nothing on disk
 - A failed extraction is recorded rather than rolled back, so a project whose
   statement could not be read never looks untouched
+- An AI-suggested business activity cannot unblock a rule: unconfirmed reads as
+  *unknown* to the engine, and the database refuses to store it as confirmed
+- Answering a question re-runs classification immediately, and `NOT_SURE` is
+  stored while still blocking — being asked and not knowing is not a fact
+- Every question in the review screen is raised by a rule and carries its
+  wording, its help text and the amount that turns on it, from a data file
+  checked against the rule set at load time
 - Frontend: `eslint` clean, `tsc --noEmit` clean, production build succeeds,
   3 Playwright tests pass, `npm audit` reports 0 vulnerabilities
 

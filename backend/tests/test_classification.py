@@ -22,7 +22,7 @@ from app.domain.enums import (
     Ifrs18Category,
     RuleVerificationStatus,
 )
-from app.domain.rules import ClassifiableItem, EntityFacts
+from app.domain.rules import ClassifiableItem, EntityFacts, LineFact
 
 NON_FINANCIAL = EntityFacts(
     {
@@ -241,6 +241,76 @@ def test_inherited_categories_ask_per_line(
     assert decision.method is ClassificationMethod.UNRESOLVED
     assert decision.blocked_on_line_fact == question
     assert decision.blocked_on_activity is None
+
+
+def answered(line_id: str, question: str, **kwargs: object) -> EntityFacts:
+    """The non-financial entity, plus one answered per-line question."""
+    return EntityFacts(
+        dict(NON_FINANCIAL.main_business_activities),
+        {(line_id, question): LineFact(question_key=question, **kwargs)},  # type: ignore[arg-type]
+    )
+
+
+def test_an_answered_line_fact_resolves_the_rule(engine: ClassificationEngine) -> None:
+    """B72: the derivative follows the risk it manages, once we are told which."""
+    facts = answered(
+        "파생상품평가이익", "DERIVATIVE_RISK_MANAGED", category=Ifrs18Category.FINANCING
+    )
+
+    decision = engine.classify(item("DERIVATIVE_GAIN", "파생상품평가이익"), facts)
+
+    assert decision.category is Ifrs18Category.FINANCING
+    assert decision.method is ClassificationMethod.RULE
+    assert decision.rule_id == "IFRS18-DERIV-001"
+    assert decision.requires_human_review is False
+
+
+def test_undue_cost_or_effort_sends_the_line_to_operating(
+    engine: ClassificationEngine,
+) -> None:
+    """B72's own relief, and B65's: not a shrug, an answer with a destination."""
+    facts = answered("외환차익", "FX_UNDERLYING_ITEM", undue_cost_or_effort=True)
+
+    decision = engine.classify(item("FX_GAIN", "외환차익"), facts)
+
+    assert decision.category is Ifrs18Category.OPERATING
+    assert decision.method is ClassificationMethod.RULE
+    assert decision.rule_id == "IFRS18-FX-001"
+
+
+def test_an_answer_for_another_line_does_not_resolve_this_one(
+    engine: ClassificationEngine,
+) -> None:
+    """Two derivative lines can manage different risks (Q4), so the answer is
+    keyed by line and never spreads."""
+    facts = answered(
+        "통화선도평가이익", "DERIVATIVE_RISK_MANAGED", category=Ifrs18Category.FINANCING
+    )
+
+    decision = engine.classify(item("DERIVATIVE_GAIN", "파생상품평가이익"), facts)
+
+    assert decision.method is ClassificationMethod.UNRESOLVED
+    assert decision.blocked_on_line_fact == "DERIVATIVE_RISK_MANAGED"
+
+
+def test_an_answer_to_a_different_question_does_not_resolve_this_one(
+    engine: ClassificationEngine,
+) -> None:
+    facts = answered("외환차익", "DERIVATIVE_RISK_MANAGED", category=Ifrs18Category.FINANCING)
+
+    decision = engine.classify(item("FX_GAIN", "외환차익"), facts)
+
+    assert decision.method is ClassificationMethod.UNRESOLVED
+    assert decision.blocked_on_line_fact == "FX_UNDERLYING_ITEM"
+
+
+def test_an_empty_answer_still_blocks(engine: ClassificationEngine) -> None:
+    """A row with neither a category nor the relief is an unanswered question."""
+    facts = answered("외환차익", "FX_UNDERLYING_ITEM")
+
+    decision = engine.classify(item("FX_GAIN", "외환차익"), facts)
+
+    assert decision.method is ClassificationMethod.UNRESOLVED
 
 
 def test_derivative_rule_cites_b72(engine: ClassificationEngine) -> None:

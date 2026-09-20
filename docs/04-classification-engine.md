@@ -94,12 +94,24 @@ class ActivityType(StrEnum):
     OTHER = "OTHER"
 
 @dataclass(frozen=True)
+class LineFact:
+    """A fact about one line that only the entity can supply (B65, B72)."""
+    question_key: str
+    category: Ifrs18Category | None = None
+    subcategory: str | None = None
+    undue_cost_or_effort: bool = False   # the standard's relief, not "unknown"
+
+@dataclass(frozen=True)
 class EntityFacts:
     """Confirmed facts about the entity. Tri-state by design."""
     main_business_activities: Mapping[ActivityType, bool | None]
+    line_facts: Mapping[tuple[str, str], LineFact] = field(default_factory=dict)
 
     def is_main(self, a: ActivityType) -> bool | None:
         return self.main_business_activities.get(a)   # None == UNKNOWN
+
+    def line_fact(self, line_id: str, question_key: str) -> LineFact | None:
+        ...                                           # None == UNKNOWN, and blocks
 
 @dataclass(frozen=True)
 class ClassifiableItem:
@@ -137,6 +149,12 @@ class ClassificationDecision:
 `EntityFacts.is_main()` returning `None` is the mechanism that produces user
 questions. `None` (unknown) and `False` (user said no) are never conflated.
 
+`line_facts` is keyed by `(line_id, question_key)`, and `line_id` is whatever
+the caller chose to identify a line by — the caption for a one-shot run over a
+statement in memory, the stored ordinal for a project. Keying by the caption
+alone would leak one derivative's answer onto another line printed under the
+same name.
+
 ## 4. The `NEEDS_FACT` outcome
 
 This is the engine's most important structural feature and the reason the
@@ -169,6 +187,15 @@ rule matches the account pattern
                                     rule re-evaluated → MATCH
                                     (NOT_SURE → stays UNRESOLVED, still blocked)
 ```
+
+A line-scoped answer carries a category rather than a yes or no, because B65
+and B72 ask *which* category the underlying item or managed risk belongs to.
+"Undue cost or effort" is the third form of answer and is **complete**: the
+standard sends exactly that case to operating, so the rule resolves rather than
+staying blocked. The answers a question accepts live beside its wording in
+`app/data/review_questions.json`, which is checked against the rule set at load
+time — a rule that needs a fact no question defines is a startup failure, not a
+blank prompt in the review screen.
 
 ## 5. Evaluation pipeline
 

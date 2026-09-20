@@ -5,12 +5,14 @@
 > contract those models must produce.
 >
 > **Built:** `/health`, `/ready`, `/meta/disclaimer`, `/auth/register`,
-> `/auth/login`, `/auth/me`, the `/projects` collection, and upload, extract,
-> statements, lines and line correction. The RFC 9457 error contract, bearer
-> authentication and ownership isolation are in place.
+> `/auth/login`, `/auth/me`, the `/projects` collection, upload, extract,
+> statements, lines and line correction, and classify, classifications,
+> classification review, questions and business-activities. The RFC 9457 error
+> contract, bearer authentication and ownership isolation are in place.
 >
-> **Not built yet:** classify, classifications, questions, business-activities,
-> finalize, statement, impact, export, rules, accounts, audit-logs, jobs.
+> **Not built yet:** finalize, statement, impact, export, rules, accounts,
+> audit-logs, jobs. Bulk classification review is also not built; single
+> `PATCH` is.
 
 ## 1. Conventions
 
@@ -205,99 +207,206 @@ another user's line is `404`.
 
 ### Business activities and questions
 
+Spec §5's question step, made real. A question exists because a **rule** said
+it could not decide without a fact only the entity has — never because a model
+was unsure.
+
 #### `GET /api/projects/{project_id}/business-activities`
+What has been declared about this entity, and by whom. Nothing is inferred from
+an industry code (spec §10): an activity nobody confirmed is simply not here.
+
+```json
+{ "items": [
+  { "id": "…", "activity_type": "INVESTING_IN_ASSETS",
+    "is_main_business_activity": true, "description": "…",
+    "source": "USER", "confirmed_by_user": true,
+    "confirmed_at": "2026-09-19T…Z", "is_specified": true } ] }
+```
+
+`is_specified` marks the two activities IFRS 18 itself names (F10); an entity
+may have both (B30). `is_main_business_activity` is **three-valued**: `null`
+means unknown, which blocks the rules that depend on it, and is never the same
+as `false`.
+
 #### `PUT /api/projects/{project_id}/business-activities/{activity_type}`
 ```json
 { "is_main_business_activity": true,
-  "description": "고객에 대한 금융 제공이 주된 영업활동",
-  "source": "USER" }
+  "description": "고객에 대한 금융 제공이 주된 영업활동" }
 ```
-Only a user may set `confirmed_by_user: true` (spec §10). An AI suggestion may
-create the row with `source: "AI_SUGGESTED"` and `is_main_business_activity:
-null`, which does **not** unblock any rule.
+Only a person reaches this endpoint, so what it writes is `confirmed_by_user`
+with `source: "USER"`. Passing `null` **withdraws** a confirmation and returns
+the fact to unknown — a user who no longer stands behind an answer must not be
+forced to assert the opposite. Classification is re-run immediately, so the
+declaration takes effect rather than waiting for a step the user has to
+remember.
+
+An AI suggestion may create a row with `source: "AI_SUGGESTED"`, but it can
+never mark it confirmed — a database CHECK constraint refuses that — and an
+unconfirmed row reads as *unknown* to the rule engine, so it unblocks nothing.
 
 #### `GET /api/projects/{project_id}/questions`
 ```json
 { "items": [
-  { "id": "…", "question_key": "SMBA_INVESTING_IN_ASSETS",
-    "question_text_ko": "이 회사에서 금융자산에 대한 투자가 주요 사업활동입니까?",
-    "question_text_en": "Is investing in financial assets a main business activity of this entity?",
-    "raised_by_rule_id": "IFRS18-SMBA-001",
+  { "id": "…", "scope": "COMPANY", "line_id": null,
+    "question_key": "SMBA_INVESTING_IN_ASSETS",
+    "question_text_ko": "이 기업에서 자산에 대한 투자가 주된 영업활동입니까?",
+    "question_text_en": "Is investing in assets a main business activity…",
+    "help_ko": "산업분류코드로 판단하지 마십시오. …",
+    "raised_by_rule_id": "IFRS18-INVESTING-002",
     "options": ["YES", "NO", "NOT_SURE"],
-    "affected_line_count": 4,
-    "affected_amount": "83000000000.000000",
-    "answer": null, "blocks_finalization": true } ] }
+    "allows_undue_cost_or_effort": false,
+    "answer": null, "is_resolved": false, "blocks_finalization": true,
+    "affected_line_count": 1, "affected_amount": "6000.000000" } ],
+  "open_count": 3 }
 ```
-`affected_amount` tells the user what turns on their answer before they give it.
 
-#### `POST /api/questions/{question_id}/answer`
+`affected_amount` tells the user what turns on their answer before they give
+it. `scope` is the distinction resolved in Q4: `COMPANY` for a main business
+activity — one answer settles every affected line — and `LINE` for a fact about
+one instrument or item (B65, B72), because two derivative lines in one
+statement can manage different risks.
+
+#### `POST /api/projects/{project_id}/questions/{question_id}/answer`
 ```json
-{ "answer": "YES", "note": "2025 사업보고서 II-1 참조" }
+{ "answer": "YES", "resolved_category": "FINANCING",
+  "resolved_subcategory": "FINANCING_INCOME",
+  "undue_cost_or_effort": false,
+  "note": "이자율스왓 — 차입금 이자율 위험" }
 ```
-→ `200`; re-runs the affected rules only. `NOT_SURE` is accepted and stored, but
-leaves the question blocking with `blocking_reason: "ANSWER_NOT_SURE"`.
+→ `200` with the question and a fresh classification summary: answering re-runs
+classification, preserving human decisions, so the caller sees the effect
+without a second call. The route is project-scoped, so a question id from
+another analysis is `404`.
+
+The shape of a valid answer depends on the question, and a meaningless one is
+refused rather than stored — a stored answer unblocks a rule:
+
+| | `COMPANY` | `LINE` |
+|---|---|---|
+| Accepts | `YES` / `NO` / `NOT_SURE` | `YES` / `NOT_SURE` |
+| Category | refused (`wrong-answer-shape`) | required, unless the relief is claimed |
+| Undue cost or effort | refused | accepted — IFRS 18's own relief (B65, B72) |
+| `YES` writes | a confirmed `business_activities` row | the line's category |
+
+`NOT_SURE` is stored and **still blocks**, with `is_resolved: false`. Being
+asked and not knowing is worth recording; it is not a fact the rules may act
+on. Other failures: `unanswerable`, `category-required`,
+`subcategory-mismatch`.
+
+A re-run finds the question already answered rather than asking again; an
+*unanswered* question that no rule is waiting on any more is discarded, so a
+line that no longer exists cannot block finalization forever.
 
 ### Classification
 
 #### `POST /api/projects/{project_id}/classify`
 ```json
-{ "mode": "FULL",            // FULL | UNRESOLVED_ONLY
-  "use_ai_assistant": true,
-  "preserve_user_overrides": true }
+{ "use_ai_assistant": false, "preserve_user_overrides": true }
 ```
-→ `202` job. `preserve_user_overrides: true` (default) guarantees re-running
-classification never silently discards a human decision.
+Runs **synchronously** and returns `200`, for the same reason extraction does.
+
+```json
+{ "summary": { "total": 9,
+               "by_method": { "RULE": 5, "RESIDUAL_DEFAULT": 3, "UNRESOLVED": 1 },
+               "by_category": { "OPERATING": 3, "INVESTING": 1, "…": 0 },
+               "requires_review": 4, "unreviewed": 4, "open_questions": 3 },
+  "questions": [ … ],
+  "rule_set_version": "2026.09.1",
+  "preserved_overrides": 0, "discarded": 0,
+  "ai_assistant_available": false }
+```
+
+- The engine **proposes**; nothing here is final. A rule-derived decision is
+  stored as the proposal and, where the rule says so, carries
+  `requires_human_review`. An AI decision always does, by construction.
+- `preserve_user_overrides` defaults to true: a re-run keeps every human
+  decision and refreshes only the proposal beside it, so a reviewer can see
+  that the engine now proposes something else. Passing `false` discards those
+  decisions — all of each one, not just its category — and has to be asked for.
+- `discarded` counts decisions dropped because their line is no longer
+  classifiable (a line corrected into a subtotal, say).
+- `ai_assistant_available` is **false** in this build: no advisor is
+  configured, so `use_ai_assistant` currently changes nothing. Said plainly
+  rather than left for a caller to infer from an empty result.
+- Account mappings are written back onto the lines, except where a person
+  mapped one by hand — a manual mapping is a decision, it is never overwritten,
+  and it is what the engine classifies on.
+
+Refused with `422 nothing-extracted` before there is a statement to classify.
 
 #### `GET /api/projects/{project_id}/classifications`
-`?requires_review=true&category=&method=&sort=impact_abs_desc&limit=&cursor=`
+`?requires_review=&category=&method=`
 
-Default sort is `impact_abs_desc` — largest absolute effect on operating profit
-first (arch §9).
+Ordered by largest absolute effect on operating profit first (arch §9) — the
+line that moves the number most is the one a reviewer should see first — with
+the id breaking ties so the order is total.
 
 ```json
 { "items": [
   { "id": "…", "line_id": "…",
     "original_account": "이자수익",
     "normalized_account_code": "INTEREST_INCOME",
-    "amount": "3000.000000",
-    "current_category": "OTHER_INCOME",
+    "amount": "6000.000000",
+    "current_category": null,
     "proposed_ifrs18_category": "INVESTING",
     "proposed_ifrs18_subcategory": "INVESTING_INCOME",
     "final_ifrs18_category": "INVESTING",
     "classification_method": "RULE",
-    "rule_id": "IFRS18-INVESTING-001",
-    "rule_source_reference": "IFRS 18 paragraph 49",
-    "ai_confidence": null,
-    "confidence_band": "HIGH",
-    "requires_human_review": false,
-    "user_override": false,
-    "impact_on_operating_profit": "-3000.000000",
-    "evidence": [ { "evidence_type": "RULE_SOURCE", "reference": "IFRS 18 paragraph 49",
+    "rule_id": "IFRS18-INVESTING-002",
+    "rule_source_reference": "IFRS 18 paragraphs 49-50",
+    "rule_verification_status": "VERIFIED_SECONDARY",
+    "ai_confidence": null, "confidence_band": "HIGH",
+    "requires_human_review": true,
+    "blocked_on_question_id": null,
+    "user_override": false, "reviewed_at": null,
+    "impact_on_operating_profit": "0.000000",
+    "evidence": [ { "evidence_type": "RULE_SOURCE",
+                    "reference": "IFRS 18 paragraphs 49-50",
                     "produced_by": "RULE" } ] } ],
-  "summary": { "total": 84, "by_method": { "RULE": 61, "RESIDUAL_DEFAULT": 16,
-               "AI": 6, "USER": 1, "UNRESOLVED": 0 },
-               "requires_review": 7 } }
+  "summary": { … } }
 ```
 
-#### `GET /api/classifications/{classification_id}`
-Full detail for the row-click drill-down (§7): the rule's full text and citation,
-the AI's verbatim reasoning and raw response, all evidence, the review history,
-and the source locator back to the originating cell or PDF region.
+The `summary` covers the **whole project**, not the filtered page: a summary
+that moved with the filter would tell a reviewer they had fewer items left than
+they do.
 
-#### `PATCH /api/classifications/{classification_id}`
+`impact_on_operating_profit` is `null` where the source printed no operating
+subtotal — with no "before", the movement is unknown rather than zero.
+
+#### `GET /api/projects/{project_id}/classifications/{classification_id}`
+The row-click drill-down of spec §7: the rule's full text and citation, the AI's
+verbatim reasoning where there is one, all evidence, the review history, and the
+source locator back to the originating cell. Project-scoped, like every other
+route, so an id on its own is useless.
+
+#### `PATCH /api/projects/{project_id}/classifications/{classification_id}`
 ```json
-{ "final_ifrs18_category": "OPERATING",
-  "final_ifrs18_subcategory": "OPERATING_REVENUE",
-  "override_reason": "당사의 주요 사업활동에 해당",
-  "action": "OVERRIDDEN" }
+{ "action": "OVERRIDDEN",
+  "final_ifrs18_category": "OPERATING",
+  "final_ifrs18_subcategory": "OPERATING_OTHER",
+  "override_reason": "당사의 주요 사업활동에 해당" }
 ```
-→ `200`. Sets `user_override: true`, `classification_method: "USER"`, writes a
-`user_reviews` row and an `audit_logs` row, and recomputes impact. Accepting an
-existing proposal unchanged is `action: "ACCEPTED"` — also recorded, because
-"a human looked at this and agreed" is itself audit-relevant information.
+The third layer of spec §1, and the only way a final category is settled by a
+person.
 
-Bulk form: `PATCH /api/projects/{project_id}/classifications` with an `items`
-array, applied in one transaction.
+- `OVERRIDDEN` sets `user_override: true` and `classification_method: "USER"`,
+  and **requires a reason** (`422 reason-required`) and a category
+  (`category-required`). An unexplained override is not an audit trail (§8). A
+  subcategory from another category is `subcategory-mismatch`.
+- `ACCEPTED` records that a person looked at the proposal and agreed, which is
+  audit-relevant in itself. `requires_human_review` stays set — it is the record
+  that review was needed — and what clears the blocker is `reviewed_at`.
+- `DEFERRED` is recorded and deliberately does **not** clear the review: coming
+  back later is not deciding.
+- Every action writes a `user_reviews` row and an `audit_logs` row, and
+  recomputes the line's movement from the category that now stands, so the
+  impact table and the waterfall cannot disagree with the statement (ERD §5).
+- Deciding a line that was blocked on a **per-line** question stops that
+  question blocking, and leaves it *unanswered* — nobody answered it. A
+  `COMPANY` question is untouched: other lines still depend on that fact.
+
+Bulk review (`PATCH …/classifications` with an `items` array) is specified
+above but **not built**.
 
 ### Finalize, statement, impact
 

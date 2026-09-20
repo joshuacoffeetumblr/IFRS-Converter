@@ -12,11 +12,9 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import io
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-import pytest
 from httpx import AsyncClient
 from openpyxl import Workbook
 from sqlalchemy import func, select
@@ -34,20 +32,6 @@ from tests.fixtures.korean_income_statement import (
 from tests.test_api_projects import create, sign_up
 
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-
-
-@pytest.fixture()
-def uploads_dir(tmp_path: Path, settings: Settings) -> Iterator[Path]:
-    """Point storage at a scratch directory instead of the working tree."""
-    original = settings.upload.directory
-    settings.upload.directory = tmp_path / "uploads"
-    yield settings.upload.directory
-    settings.upload.directory = original
-
-
-@pytest.fixture()
-def statement_bytes(tmp_path: Path) -> bytes:
-    return build_workbook(tmp_path / "source.xlsx").read_bytes()
 
 
 def stored_files(directory: Path) -> list[Path]:

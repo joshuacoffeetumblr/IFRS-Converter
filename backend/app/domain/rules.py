@@ -21,11 +21,11 @@ operating profit without anything in the audit trail explaining why.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from app.domain.enums import ActivityType
+from app.domain.enums import ActivityType, Ifrs18Category, Ifrs18Subcategory
 
 # ---------------------------------------------------------------------------
 # Fields a condition may read
@@ -61,18 +61,52 @@ class RuleDefinitionError(ValueError):
 
 
 @dataclass(frozen=True, slots=True)
+class LineFact:
+    """A fact about one line that only the entity can supply (Q4).
+
+    Which risk a derivative manages (B72) and which item gave rise to a foreign
+    exchange difference (B65) cannot be read from an account name, and two
+    lines in one statement can answer differently — so unlike a main business
+    activity, this is asked and answered per line.
+
+    ``undue_cost_or_effort`` is the standard's own relief, not a way of saying
+    "unknown": it means the user has told us that tracing the underlying item
+    would require grossing up or is impracticable, which is itself a complete
+    answer and routes the line to operating.
+    """
+
+    question_key: str
+    category: Ifrs18Category | None = None
+    subcategory: Ifrs18Subcategory | None = None
+    undue_cost_or_effort: bool = False
+
+    @property
+    def is_answered(self) -> bool:
+        return self.undue_cost_or_effort or self.category is not None
+
+
+@dataclass(frozen=True, slots=True)
 class EntityFacts:
     """Confirmed facts about the reporting entity (spec §10).
 
     ``is_main`` is **tri-state**: ``None`` means unknown and is what triggers a
     ``NEEDS_FACT`` outcome. ``None`` and ``False`` are never conflated — only
     ``None`` blocks, because a user who answered "no" has already been asked.
+
+    ``line_facts`` carries the per-line answers, keyed by the same ``line_id``
+    the caller puts on a ``ClassifiableItem``. An absent key is unknown, which
+    is what keeps a line-fact rule blocked until somebody answers it.
     """
 
     main_business_activities: dict[ActivityType, bool | None]
+    line_facts: dict[tuple[str, str], LineFact] = field(default_factory=dict)
 
     def is_main(self, activity: ActivityType) -> bool | None:
         return self.main_business_activities.get(activity)
+
+    def line_fact(self, line_id: str, question_key: str) -> LineFact | None:
+        fact = self.line_facts.get((line_id, question_key))
+        return fact if fact is not None and fact.is_answered else None
 
     @classmethod
     def unknown(cls) -> EntityFacts:

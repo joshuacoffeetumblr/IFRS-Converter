@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.errors import install_error_handlers
-from app.api.routers import auth, health, meta, projects, uploads
+from app.api.routers import auth, classifications, health, meta, projects, review, uploads
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging, get_logger
 from app.db.session import dispose_engine
@@ -60,6 +60,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth.router, prefix=settings.api_prefix)
     app.include_router(projects.router, prefix=settings.api_prefix)
     app.include_router(uploads.router, prefix=settings.api_prefix)
+    app.include_router(classifications.router, prefix=settings.api_prefix)
+    app.include_router(review.router, prefix=settings.api_prefix)
 
     return app
 
