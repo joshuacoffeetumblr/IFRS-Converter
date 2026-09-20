@@ -236,3 +236,26 @@ async def test_deletion_is_soft_and_hides_the_project(api: AsyncClient) -> None:
     assert deleted.status_code == 204
     assert (await api.get(f"/api/projects/{project['id']}", headers=headers)).status_code == 404
     assert (await api.get("/api/projects", headers=headers)).json()["items"] == []
+
+
+async def test_a_listed_project_carries_what_a_list_has_to_show(api: AsyncClient) -> None:
+    """The list screen names the entity and the unit on every row.
+
+    Every existing list test asserted on ownership, ordering or filtering —
+    none looked at a row's *contents*. So the summary quietly lacked
+    `company_name` and `presentation_scale`, the web app read `company.name`
+    off it, and the project list threw `Cannot read properties of undefined`
+    for anyone who owned a single project. The list was unreachable the moment
+    it had something in it.
+    """
+    owner = await sign_up(api, "owner@example.com")
+    created = await create(api, owner)
+
+    response = await api.get("/api/projects", headers=owner)
+
+    assert response.status_code == 200
+    (item,) = response.json()["items"]
+    assert item["company_name"] == created["company"]["name"]
+    assert item["presentation_scale"] == created["presentation_scale"]
+    assert item["name"] == created["name"]
+    assert item["fiscal_year"] == created["fiscal_year"]

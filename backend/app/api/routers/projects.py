@@ -81,7 +81,20 @@ async def list_projects(
         user.id, limit=limit, status=project_status.value if project_status else None
     )
     return Page[ProjectSummary](
-        items=[ProjectSummary.model_validate(item) for item in projects],
+        items=[
+            ProjectSummary(
+                id=item.id,
+                name=item.name,
+                company_name=item.company.name,
+                fiscal_year=item.fiscal_year,
+                basis=item.basis,
+                presentation_scale=item.presentation_scale,
+                status=item.status,
+                reconciliation_status=item.reconciliation_status,
+                created_at=item.created_at,
+            )
+            for item in projects
+        ],
         total=await ProjectRepository(session).count_for_owner(user.id),
     )
 

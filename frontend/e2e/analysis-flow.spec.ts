@@ -202,6 +202,26 @@ test.describe("the IFRS 18 flow", () => {
   });
 });
 
+test.describe("the project list", () => {
+  test("still renders once it has a project in it", async ({ page }) => {
+    // Every earlier test went straight from creating a project to working on
+    // it and never came back. So nothing noticed that the list crashed on its
+    // first row: the summary the API returns has no `company`, the page read
+    // `company.name`, and going back to the list — the ordinary way to start a
+    // second analysis or fix a typed-in year — showed a server error instead.
+    await signUp(page);
+    await createProject(page);
+
+    await page.getByRole("link", { name: /프로젝트 목록/ }).click();
+    await expect(page).toHaveURL(/\/projects$/);
+
+    await expect(page.getByRole("heading", { name: "분석 프로젝트" })).toBeVisible();
+    const row = page.getByRole("link", { name: /2025 연결 손익계산서/ });
+    await expect(row).toBeVisible();
+    await expect(row).toContainText("이투이 주식회사");
+  });
+});
+
 test.describe("access", () => {
   test("sends a signed-out visitor to the sign-in page", async ({ page }) => {
     await page.goto("/projects");

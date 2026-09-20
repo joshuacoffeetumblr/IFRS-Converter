@@ -103,10 +103,22 @@ class ProjectResponse(ApiModel):
 
 
 class ProjectSummary(ApiModel):
+    """A project as it appears in a list.
+
+    Deliberately lighter than `ProjectResponse` — a list does not need the
+    period, the rule set version or the progress counters. It does need the
+    entity and the unit: a list of projects that does not say which company
+    each one is for cannot be navigated, and the screen that renders it read
+    `company.name` off this shape and crashed on `undefined` the moment a
+    user owned a single project.
+    """
+
     id: uuid.UUID
     name: str
+    company_name: str
     fiscal_year: int
     basis: ProjectBasis
+    presentation_scale: int
     status: ProjectStatus
     reconciliation_status: ReconciliationStatus
     created_at: dt.datetime

@@ -18,6 +18,7 @@ from app.domain.enums import (
     ReconciliationStatus,
     ScanStatus,
 )
+from app.models.company import Company
 
 
 class Project(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -67,6 +68,11 @@ class Project(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     uploaded_files: Mapped[list[UploadedFile]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+
+    #: Eager, because the project list shows the entity's name on every row.
+    #: Lazily loaded it would either raise under async or issue a query per
+    #: row; `selectin` fetches every company in one further statement.
+    company: Mapped[Company] = relationship(lazy="selectin")
 
 
 class UploadedFile(UUIDPrimaryKeyMixin, TimestampMixin, Base):

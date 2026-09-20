@@ -190,6 +190,26 @@ export interface Project {
   progress?: ProjectProgress;
 }
 
+/**
+ * A project as the **list** endpoint returns it — lighter than `Project`.
+ *
+ * Typing the list as `Project` was a lie the compiler could not catch: the
+ * list screen read `project.company.name`, the API never sent `company`, and
+ * the page threw `Cannot read properties of undefined` for every user who
+ * owned at least one project. The shapes differ, so the types differ.
+ */
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  company_name: string;
+  fiscal_year: number;
+  basis: string;
+  presentation_scale: number;
+  status: ProjectStatus;
+  reconciliation_status: ReconciliationStatus;
+  created_at: string;
+}
+
 export interface Page<T> {
   items: T[];
   next_cursor: string | null;
@@ -554,7 +574,7 @@ export const api = {
     }),
   me: () => request<{ id: string; email: string }>("/auth/me"),
 
-  projects: () => request<Page<Project>>("/projects"),
+  projects: () => request<Page<ProjectSummary>>("/projects"),
   project: (id: string) => request<Project>(`/projects/${id}`),
   createProject: (input: CreateProjectInput) => request<Project>("/projects", json(input)),
 

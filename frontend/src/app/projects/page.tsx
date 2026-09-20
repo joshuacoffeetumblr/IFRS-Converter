@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { api, type Project } from "@/lib/api";
+import { api, type ProjectSummary } from "@/lib/api";
 import { requireSession } from "@/lib/guard";
 import { ProjectStatusPill } from "@/components/StatusPill";
 import { scaleLabel } from "@/lib/format";
@@ -44,7 +44,7 @@ export default async function ProjectsPage() {
   );
 }
 
-function ProjectRow({ project }: { project: Project }) {
+function ProjectRow({ project }: { project: ProjectSummary }) {
   return (
     <li>
       <Link
@@ -54,7 +54,7 @@ function ProjectRow({ project }: { project: Project }) {
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{project.name}</p>
           <p className="mt-1 text-xs text-muted">
-            {project.company.name} · {project.fiscal_year}기 · {project.basis === "CONSOLIDATED" ? "연결" : "별도"} ·{" "}
+            {project.company_name} · {project.fiscal_year}기 · {project.basis === "CONSOLIDATED" ? "연결" : "별도"} ·{" "}
             {scaleLabel(project.presentation_scale)}
           </p>
         </div>
