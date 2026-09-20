@@ -134,7 +134,14 @@ async def test_uploading_is_audited(
     project, body = await uploaded(api, headers, statement_bytes)
 
     entries = (
-        (await db_session.execute(select(AuditLog).where(AuditLog.entity_type == "uploaded_files")))
+        (
+            await db_session.execute(
+                select(AuditLog).where(
+                    AuditLog.entity_type == "uploaded_files",
+                    AuditLog.project_id == project["id"],
+                )
+            )
+        )
         .scalars()
         .all()
     )
@@ -194,7 +201,11 @@ async def test_a_disguised_executable_is_refused(
     assert response.headers["content-type"].startswith("application/problem+json")
     assert response.json()["type"].endswith("/unsupported-media-type")
     assert stored_files(uploads_dir) == []
-    count = await db_session.scalar(select(func.count()).select_from(UploadedFile))
+    count = await db_session.scalar(
+        select(func.count())
+        .select_from(UploadedFile)
+        .where(UploadedFile.project_id == project["id"])
+    )
     assert count == 0
 
 

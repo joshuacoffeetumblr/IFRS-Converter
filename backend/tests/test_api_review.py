@@ -178,7 +178,12 @@ async def test_answering_an_entity_question_records_the_activity(
     assert activities["items"][0]["confirmed_by_user"] is True
     assert activities["items"][0]["is_specified"] is True
     entry = (
-        await db_session.execute(select(AuditLog).where(AuditLog.action == "QUESTION_ANSWERED"))
+        await db_session.execute(
+            select(AuditLog).where(
+                AuditLog.action == "QUESTION_ANSWERED",
+                AuditLog.project_id == project["id"],
+            )
+        )
     ).scalar_one()
     assert entry.after is not None and entry.after["answer"] == "YES"
 

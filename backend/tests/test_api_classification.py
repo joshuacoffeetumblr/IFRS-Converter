@@ -160,10 +160,14 @@ async def test_classification_is_audited(
 ) -> None:
     headers = await sign_up(api, "owner@example.com")
 
-    _, body = await classified(api, headers, statement_bytes)
+    project, body = await classified(api, headers, statement_bytes)
 
     entry = (
-        await db_session.execute(select(AuditLog).where(AuditLog.action == "CLASSIFIED"))
+        await db_session.execute(
+            select(AuditLog).where(
+                AuditLog.action == "CLASSIFIED", AuditLog.project_id == project["id"]
+            )
+        )
     ).scalar_one()
     assert entry.after is not None
     assert entry.after["classified"] == body["summary"]["total"]
@@ -293,7 +297,11 @@ async def test_accepting_a_proposal_is_recorded(
     assert response.json()["reviewed_at"] is not None
     assert response.json()["user_override"] is False
     review = (
-        await db_session.execute(select(UserReview).where(UserReview.action == "ACCEPTED"))
+        await db_session.execute(
+            select(UserReview).where(
+                UserReview.action == "ACCEPTED", UserReview.classification_id == row["id"]
+            )
+        )
     ).scalar_one()
     assert str(review.classification_id) == row["id"]
 
@@ -427,7 +435,11 @@ async def test_deferring_leaves_the_item_in_the_queue(
     summary = (await classifications(api, headers, project["id"]))["summary"]
     assert summary["unreviewed"] == summary["requires_review"]
     review = (
-        await db_session.execute(select(UserReview).where(UserReview.action == "DEFERRED"))
+        await db_session.execute(
+            select(UserReview).where(
+                UserReview.action == "DEFERRED", UserReview.classification_id == row["id"]
+            )
+        )
     ).scalar_one()
     assert str(review.classification_id) == row["id"]
 
@@ -629,15 +641,8 @@ async def test_classification_records_how_each_caption_resolved(
     by_label = {item["raw_label"]: item for item in lines["items"]}
     assert by_label["매출액"]["normalized_account_code"] == "REVENUE"
     assert by_label["매출총이익"]["normalized_account_code"] is None
-    stored = (
-        (
-            await db_session.execute(
-                select(FinancialStatementLine).where(FinancialStatementLine.raw_label == "매출액")
-            )
-        )
-        .scalars()
-        .one()
-    )
+    stored = await db_session.get(FinancialStatementLine, by_label["매출액"]["id"])
+    assert stored is not None
     assert stored.normalization_method in {"EXACT", "SYNONYM", "FUZZY"}
 
 

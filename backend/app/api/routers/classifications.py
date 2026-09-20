@@ -16,7 +16,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import CurrentUser, SessionDep, parse_uuid
+from app.api.deps import CurrentUser, SessionDep, ensure_not_finalized, parse_uuid
 from app.api.errors import NotFoundError, UnprocessableStateError
 from app.api.schemas.classification import (
     ClassificationDetailResponse,
@@ -197,6 +197,7 @@ async def classify(
     response already contains.
     """
     project = await _project(session, project_id, user)
+    ensure_not_finalized(project)
     try:
         run = await classify_project(
             session,
@@ -297,6 +298,7 @@ async def review(
 ) -> ClassificationResponse:
     """Accept, override or defer one classification (spec §1 layer 3)."""
     project = await _project(session, project_id, user)
+    ensure_not_finalized(project)
     row = await _classification(session, classification_id, project)
 
     try:

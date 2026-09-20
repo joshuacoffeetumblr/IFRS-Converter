@@ -40,8 +40,11 @@ NAMING_CONVENTION = {
 MONEY_PRECISION = 38
 MONEY_SCALE = 6
 
+RATIO_PRECISION = 5
+RATIO_SCALE = 4
+
 Money = Annotated[Decimal, mapped_column(Numeric(MONEY_PRECISION, MONEY_SCALE))]
-Ratio = Annotated[Decimal, mapped_column(Numeric(5, 4))]
+Ratio = Annotated[Decimal, mapped_column(Numeric(RATIO_PRECISION, RATIO_SCALE))]
 
 
 class Base(DeclarativeBase):

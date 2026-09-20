@@ -15,18 +15,36 @@ from typing import Annotated, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, PlainSerializer
 
-#: A monetary value. Serialized in plain notation — ``format(v, "f")`` rather
-#: than ``str(v)`` — so a large or small figure never reaches the client in
-#: scientific notation, which a decimal parser would have to special-case.
+from app.db.base import MONEY_SCALE, RATIO_SCALE
+
+
+def _fixed(value: Decimal, scale: int) -> str:
+    """Plain notation, always at the stored scale.
+
+    Two things this avoids. Scientific notation, which a decimal parser on the
+    other side would have to special-case — so ``format`` rather than ``str``.
+    And a figure whose text changes with how it was produced: a total summed
+    from nothing is ``Decimal(0)``, and rendering that as "0" beside
+    "-70000.000000" invites a client to compare the two as strings and see a
+    difference that is not there.
+
+    ``format`` rather than ``quantize``: a full-precision ``numeric(38, 6)``
+    value exceeds the default decimal context's 28 digits, and ``quantize``
+    raises on it. Formatting is exact at any size.
+    """
+    return format(value, f".{scale}f")
+
+
+#: A monetary value, at the scale it is stored at (``numeric(38, 6)``).
 Money = Annotated[
     Decimal,
-    PlainSerializer(lambda value: format(value, "f"), return_type=str, when_used="json"),
+    PlainSerializer(lambda value: _fixed(value, MONEY_SCALE), return_type=str, when_used="json"),
 ]
 
-#: A ratio or percentage. Same reasoning as Money.
+#: A ratio or percentage. Same reasoning as Money, at ``numeric(5, 4)``.
 Ratio = Annotated[
     Decimal,
-    PlainSerializer(lambda value: format(value, "f"), return_type=str, when_used="json"),
+    PlainSerializer(lambda value: _fixed(value, RATIO_SCALE), return_type=str, when_used="json"),
 ]
 
 

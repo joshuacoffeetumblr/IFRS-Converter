@@ -10,7 +10,7 @@ audit trail, how and why operating profit changes.
 
 ---
 
-## Status: Phase 8 — Excel export
+## Status: the REST API is complete
 
 Phases 1–8 are complete: repository and tooling, the database schema,
 XLSX + CSV extraction with cell-level provenance and reconciliation against the
@@ -21,15 +21,14 @@ reconciliation gate, impact analysis, and Excel export.
 The analytical core is complete and driven end to end by
 `app/services/pipeline.py`.
 
-The REST API is being built on top of it: authentication and projects, then
-file upload, extraction and line correction — uploads are sniffed rather than
-trusted, deduplicated by SHA-256, and every extracted line reaches the client
-with its source cell and the reconciliation that verified it — and now
-classification and human review. The engine proposes and a person decides: a
-re-run never discards a human decision, an override without a reason is
-refused, and the questions the rules raise carry what turns on the answer. The
-remaining endpoints (finalize, statement, impact, export) and the frontend
-screens are the next work — see
+The REST API now covers the whole chain: authentication and projects, file
+upload and extraction, classification and human review, finalization behind
+the reconciliation gate, the IFRS 18 statement, the impact analysis and the
+Excel export — plus the rule set, the account dictionary and the audit trail,
+read back. The engine proposes and a person decides: a re-run never discards a
+human decision, an override without a reason is refused, and an analysis that
+did not reconcile is never served as a normal result. The frontend screens are
+the next work — see
 [`docs/03-api-specification.md`](docs/03-api-specification.md) for what is
 built and what is not.
 
@@ -157,6 +156,14 @@ Verified on 2026-09-19 against a live PostgreSQL 16 and both servers running:
 - Every question in the review screen is raised by a rule and carries its
   wording, its help text and the amount that turns on it, from a data file
   checked against the rule set at load time
+- Finalization answers 409 with every failing check, and records the failure
+  rather than discarding it — a project whose reconciliation failed never
+  looks untouched
+- An export of an unreconciled analysis has to be asked for explicitly and
+  comes back watermarked on every sheet
+- The rule set, the dictionary and the active thresholds are served from the
+  same files the engine runs on, unauthenticated, so the logic behind a number
+  can always be read
 - Frontend: `eslint` clean, `tsc --noEmit` clean, production build succeeds,
   3 Playwright tests pass, `npm audit` reports 0 vulnerabilities
 

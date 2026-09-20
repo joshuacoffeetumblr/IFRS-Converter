@@ -15,8 +15,14 @@ from app.adapters.storage.files import (
     UploadRejectedError,
     store_upload,
 )
-from app.api.deps import CurrentUser, SessionDep, SettingsDep, parse_uuid
-from app.api.errors import ConflictError, NotFoundError, UnprocessableStateError
+from app.api.deps import (
+    CurrentUser,
+    SessionDep,
+    SettingsDep,
+    ensure_not_finalized,
+    parse_uuid,
+)
+from app.api.errors import NotFoundError, UnprocessableStateError
 from app.api.schemas.statement import (
     ExtractionReportResponse,
     ExtractRequest,
@@ -334,12 +340,7 @@ async def update_line(
     if line is None:
         raise NotFoundError("Line")
 
-    if project.status == ProjectStatus.FINALIZED:
-        raise ConflictError(
-            title="Project is finalized",
-            code="project-finalized",
-            detail="Reopen the project before correcting an extracted line.",
-        )
+    ensure_not_finalized(project)
 
     before = _line_state(line)
 

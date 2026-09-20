@@ -13,7 +13,7 @@ from app.api.errors import UnauthorizedError
 from app.core.config import Settings
 from app.core.security import InvalidTokenError, read_token
 from app.db.session import get_session
-from app.models import User
+from app.models import Project, User
 from app.repositories.projects import UserRepository
 
 #: `auto_error=False` so a missing header reaches our handler and returns a
@@ -74,3 +74,21 @@ def parse_uuid(value: str, resource: str) -> uuid.UUID:
         return uuid.UUID(value)
     except ValueError as exc:
         raise NotFoundError(resource) from exc
+
+
+def ensure_not_finalized(project: Project) -> None:
+    """Refuse a change to a finalized project.
+
+    A finalized analysis is a statement somebody may already have sent
+    somewhere. Changing what is under it silently would make the exported file
+    and the project disagree, so a correction has to start by reopening.
+    """
+    from app.api.errors import ConflictError
+    from app.domain.enums import ProjectStatus
+
+    if project.status == ProjectStatus.FINALIZED:
+        raise ConflictError(
+            title="Project is finalized",
+            code="project-finalized",
+            detail="Reopen the project before changing it.",
+        )

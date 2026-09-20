@@ -11,7 +11,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import CurrentUser, SessionDep, parse_uuid
+from app.api.deps import CurrentUser, SessionDep, ensure_not_finalized, parse_uuid
 from app.api.errors import NotFoundError, UnprocessableStateError
 from app.api.routers.classifications import (
     question_response,
@@ -91,6 +91,7 @@ async def answer(
     Human decisions are preserved, so nothing a reviewer settled is lost.
     """
     project = await _project(session, project_id, user)
+    ensure_not_finalized(project)
     question = await QuestionRepository(session).by_id(
         parse_uuid(question_id, "Question"), project.id
     )
@@ -190,6 +191,7 @@ async def put_activity(
     rather than reading as "no".
     """
     project = await _project(session, project_id, user)
+    ensure_not_finalized(project)
     activity = await set_activity(
         session,
         project=project,
