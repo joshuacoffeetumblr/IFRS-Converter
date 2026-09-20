@@ -159,6 +159,29 @@ class Settings(BaseSettings):
     upload: UploadSettings = Field(default_factory=UploadSettings)
     ai: AiSettings = Field(default_factory=AiSettings)
 
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def _async_driver(cls, value: object) -> object:
+        """Accept the URL a managed database hands out, and name the driver.
+
+        Render, Railway, Fly and Heroku all supply `postgresql://…` (Heroku
+        still `postgres://…`), with no driver. Stored as given, the async
+        engine and Alembic both reach for a synchronous driver that is not
+        installed — and `sync_database_url`, which rewrites `+asyncpg`, has
+        nothing to rewrite. So the scheme is normalised once, here, rather
+        than every operator being told to hand-edit a URL their platform
+        generated.
+        """
+        if not isinstance(value, str):
+            return value
+        for prefix in ("postgresql+asyncpg://", "postgresql+psycopg://"):
+            if value.startswith(prefix):
+                return value
+        for prefix in ("postgresql://", "postgres://"):
+            if value.startswith(prefix):
+                return "postgresql+asyncpg://" + value[len(prefix) :]
+        return value
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_origins(cls, value: object) -> object:
@@ -247,7 +270,14 @@ class Settings(BaseSettings):
     @property
     def sync_database_url(self) -> str:
         """Alembic runs migrations synchronously."""
-        return str(self.database_url).replace("+asyncpg", "+psycopg")
+        url = str(self.database_url)
+        if "+asyncpg" in url:
+            return url.replace("+asyncpg", "+psycopg")
+        if url.startswith("postgresql+psycopg://"):
+            return url
+        # Normalisation above means this is unreachable for a postgres URL,
+        # but naming the driver is still the safer answer than guessing.
+        return url.replace("postgresql://", "postgresql+psycopg://", 1)
 
 
 @lru_cache(maxsize=1)

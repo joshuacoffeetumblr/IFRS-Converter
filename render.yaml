@@ -1,0 +1,90 @@
+# One-click deploy on Render: API, web app and a Postgres 16 database.
+#
+#   1. Fork or use this repository, then open
+#      https://dashboard.render.com/blueprints  →  New Blueprint Instance
+#   2. Point it at this repo and the branch you want.
+#   3. Render reads this file and creates all three. It will ask for two
+#      values it cannot know yet — see `sync: false` below.
+#
+# Free instances sleep after inactivity and take ~30s to wake, and the free
+# database expires after 30 days. Fine for a prototype; not for client work.
+
+databases:
+  - name: ifrs18-db
+    databaseName: ifrs18
+    user: ifrs18
+    plan: free
+    postgresMajorVersion: "16"
+
+services:
+  # ---------------------------------------------------------------- API ----
+  - type: web
+    name: ifrs18-api
+    runtime: docker
+    repo: https://github.com/joshuacoffeetumblr/IFRS-Converter
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    region: singapore
+    healthCheckPath: /api/health
+    # Migrate and seed before serving. Both are idempotent — seeding diffs the
+    # catalog rather than reinserting it — so a restart is safe. This belongs
+    # in a pre-deploy step on a paid plan; on free there is no such step, and
+    # a prototype runs one instance, so doing it here is the honest trade.
+    dockerCommand: >-
+      sh -c "alembic upgrade head
+      && python -m app.cli seed
+      && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: IFRS18_DATABASE_URL
+        fromDatabase:
+          name: ifrs18-db
+          property: connectionString
+      - key: IFRS18_ENVIRONMENT
+        value: staging
+      - key: IFRS18_DEBUG
+        value: "false"
+      - key: IFRS18_LOG_LEVEL
+        value: INFO
+      # Generated once by Render and kept. Changing it signs out every session.
+      - key: IFRS18_AUTH_SECRET_KEY
+        generateValue: true
+      # The web app's own https origin. Render cannot supply it before the
+      # service exists, so it is asked for — see the note in QUICKSTART.md.
+      - key: IFRS18_CORS_ORIGINS
+        sync: false
+      # Uploaded documents live on a disk, not in the image (spec §32).
+      - key: IFRS18_UPLOAD_DIRECTORY
+        value: /srv/var/uploads
+      # Off unless you supply a key. Everything a rule cannot decide still
+      # reaches a person either way (spec §1).
+      - key: IFRS18_AI_ENABLED
+        value: "false"
+    disk:
+      name: uploads
+      mountPath: /srv/var/uploads
+      sizeGB: 1
+
+  # ---------------------------------------------------------------- web ----
+  - type: web
+    name: ifrs18-web
+    runtime: docker
+    repo: https://github.com/joshuacoffeetumblr/IFRS-Converter
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    plan: free
+    region: singapore
+    envVars:
+      # Read at request time, not baked into the build. A `NEXT_PUBLIC_`
+      # variable is inlined when the image is built — before this API has a
+      # URL — so the web app would have carried `http://localhost:8000`
+      # forever. Every call in this app runs server-side, so a plain runtime
+      # variable is both correct and settable here.
+      - key: IFRS18_API_URL
+        sync: false
+      - key: NODE_ENV
+        value: production
+      # Next's standalone server binds `HOSTNAME`, which defaults to
+      # localhost — unreachable from outside the container.
+      - key: HOSTNAME
+        value: 0.0.0.0

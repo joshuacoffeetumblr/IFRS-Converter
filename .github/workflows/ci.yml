@@ -234,8 +234,15 @@ jobs:
           # `output: standalone` — `next start` serves a different bundle from
           # the one that was built, so the server the tests hit would not be
           # the artefact under test.
-          cp -r .next/static .next/standalone/.next/static
-          cp -r public .next/standalone/public 2>/dev/null || true
+          # `cp -r SRC DEST/` — copy *into* the directory, which behaves the
+          # same whether or not it already exists. `cp -r .next/static
+          # .next/standalone/.next/static` does not: the second time it nests
+          # a copy inside the first. Get it wrong and the server still starts
+          # and still renders — it just serves no client JS, so nothing on the
+          # page is interactive and only the tests that click anything fail.
+          mkdir -p .next/standalone/.next
+          cp -r .next/static .next/standalone/.next/
+          cp -r public .next/standalone/ 2>/dev/null || true
           nohup node .next/standalone/server.js > "$RUNNER_TEMP/web.log" 2>&1 &
           disown
           for _ in $(seq 1 60); do

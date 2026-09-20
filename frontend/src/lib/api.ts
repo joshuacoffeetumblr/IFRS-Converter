@@ -12,7 +12,23 @@ import { readToken } from "@/lib/session";
  * browser (see `lib/session.ts`).
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+/**
+ * Where the API lives, read at request time.
+ *
+ * Deliberately **not** `NEXT_PUBLIC_`-prefixed. Next inlines those into the
+ * build output, and this file only ever runs on the server — so a container
+ * built without the variable baked in `http://localhost:8000` and ignored
+ * whatever the host set at runtime. On any platform that builds the image
+ * before the API's URL exists, the web app could never reach the API.
+ *
+ * `NEXT_PUBLIC_API_URL` is still honoured so existing local setups and the
+ * compose files keep working.
+ */
+function apiBaseUrl(): string {
+  return (
+    process.env.IFRS18_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+  );
+}
 
 export class ApiError extends Error {
   constructor(
@@ -51,7 +67,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const { authenticated = true, headers, ...init } = options;
   const token = authenticated ? await readToken() : null;
 
-  const response = await fetch(`${API_BASE_URL}/api${path}`, {
+  const response = await fetch(`${apiBaseUrl()}/api${path}`, {
     ...init,
     headers: {
       Accept: "application/json",
@@ -586,7 +602,7 @@ export const api = {
     const token = await readToken();
     const query = acknowledgeUnreconciled ? "?acknowledge_unreconciled=true" : "";
     const response = await fetch(
-      `${API_BASE_URL}/api/projects/${projectId}/export/excel${query}`,
+      `${apiBaseUrl()}/api/projects/${projectId}/export/excel${query}`,
       {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         cache: "no-store",

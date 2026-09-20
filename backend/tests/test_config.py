@@ -223,3 +223,44 @@ def test_an_unset_cors_origin_keeps_the_development_default(
     monkeypatch.delenv("IFRS18_CORS_ORIGINS", raising=False)
 
     assert Settings(environment="ci").cors_origins == ["http://localhost:3000"]
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        # What Render, Railway and Fly hand out.
+        "postgresql://u:p@db.internal:5432/ifrs18",
+        # What Heroku still hands out, and what SQLAlchemy rejects outright.
+        "postgres://u:p@db.internal:5432/ifrs18",
+        # Already explicit.
+        "postgresql+asyncpg://u:p@db.internal:5432/ifrs18",
+    ],
+)
+def test_a_managed_database_url_names_the_async_driver(
+    monkeypatch: pytest.MonkeyPatch, raw: str
+) -> None:
+    """A platform's generated URL carries no driver. Stored as given, the async
+    engine and Alembic both reach for a synchronous driver that is not
+    installed — and `sync_database_url`, which rewrites `+asyncpg`, has nothing
+    to rewrite. Normalising here is what lets a one-click deploy work without
+    telling the operator to hand-edit a URL their platform produced."""
+    monkeypatch.setenv("IFRS18_DATABASE_URL", raw)
+    settings = Settings(environment="ci")
+
+    assert str(settings.database_url).startswith("postgresql+asyncpg://")
+    assert settings.sync_database_url.startswith("postgresql+psycopg://")
+    # The credentials and host survive the rewrite untouched.
+    assert "u:p@db.internal:5432/ifrs18" in str(settings.database_url)
+
+
+def test_the_production_guard_still_sees_the_repositorys_own_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Normalisation must not let the published development credentials slip
+    past the check that refuses them."""
+    monkeypatch.setenv("IFRS18_AUTH_SECRET_KEY", "x" * 48)
+    monkeypatch.setenv("IFRS18_DATABASE_URL", "postgresql://ifrs18:ifrs18@db:5432/ifrs18")
+    settings = Settings(environment="production", cors_origins=["https://a.example.com"])
+
+    with pytest.raises(RuntimeError, match="development credentials"):
+        settings.check_production_ready()

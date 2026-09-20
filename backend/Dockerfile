@@ -51,7 +51,8 @@ RUN useradd --create-home --uid 10001 appuser \
 USER appuser
 
 EXPOSE 8000
+# `$PORT` where a platform assigns one (Render, Fly), 8000 otherwise.
 HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=5 \
-    CMD curl -fsS http://localhost:8000/api/health || exit 1
+    CMD curl -fsS "http://localhost:${PORT:-8000}/api/health" || exit 1
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

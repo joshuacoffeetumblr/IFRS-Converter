@@ -1,10 +1,39 @@
 # Running it
 
-Two ways. The second is the one that has been verified end to end.
+Three ways. The first gives you a public URL; the third is the one verified
+end to end in this repository.
 
 ---
 
-## 1. Docker — one command
+## 1. Render — a real URL, one blueprint
+
+`render.yaml` creates the API, the web app and a Postgres 16 database together.
+
+1. Open **https://dashboard.render.com/blueprints** → **New Blueprint Instance**
+2. Point it at this repository and branch. Render reads `render.yaml`.
+3. It asks for two values it cannot know yet. Put anything in for now:
+   - `IFRS18_CORS_ORIGINS` on **ifrs18-api**
+   - `IFRS18_API_URL` on **ifrs18-web**
+4. Once both services exist, Render has assigned their URLs. Go back and set:
+   - `IFRS18_CORS_ORIGINS` = the **web** service's https URL
+   - `IFRS18_API_URL` = the **api** service's https URL
+5. Redeploy both. Open the web URL.
+
+The API migrates and seeds itself on start, so there is nothing to run by hand.
+
+> Free instances sleep after inactivity and take ~30s to wake; the free
+> database expires after 30 days. Fine for a prototype, not for client work.
+>
+> Two things had to change before this could work, both found by trying it:
+> the web app read its API URL from a `NEXT_PUBLIC_` variable, which Next
+> inlines at **build** time — before the API has a URL — so a container could
+> only ever talk to `localhost:8000`; and a managed database hands out
+> `postgresql://` with no driver, which neither the async engine nor Alembic
+> can use.
+
+---
+
+## 2. Docker — one command
 
 ```bash
 cp .env.example .env
@@ -30,7 +59,7 @@ Open **http://localhost:3000**.
 
 ---
 
-## 2. Without Docker — verified
+## 3. Without Docker — verified
 
 Needs PostgreSQL 16, Python 3.12, Node 22.
 
@@ -51,9 +80,10 @@ export IFRS18_AUTH_SECRET_KEY="$(openssl rand -base64 36)"
 # frontend
 cd ../frontend
 npm ci
-NEXT_PUBLIC_API_URL=http://127.0.0.1:8000 npm run build
-cp -r .next/static .next/standalone/.next/static
-NEXT_PUBLIC_API_URL=http://127.0.0.1:8000 node .next/standalone/server.js
+npm run build
+mkdir -p .next/standalone/.next
+cp -r .next/static .next/standalone/.next/      # note the trailing slash
+IFRS18_API_URL=http://127.0.0.1:8000 node .next/standalone/server.js
 ```
 
 Open **http://127.0.0.1:3000**.
