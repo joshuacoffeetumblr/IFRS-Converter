@@ -10,7 +10,7 @@ audit trail, how and why operating profit changes.
 
 ---
 
-## Status: the REST API is complete
+## Status: the MVP flow runs end to end
 
 Phases 1–8 are complete: repository and tooling, the database schema,
 XLSX + CSV extraction with cell-level provenance and reconciliation against the
@@ -27,10 +27,17 @@ the reconciliation gate, the IFRS 18 statement, the impact analysis and the
 Excel export — plus the rule set, the account dictionary and the audit trail,
 read back. The engine proposes and a person decides: a re-run never discards a
 human decision, an override without a reason is refused, and an analysis that
-did not reconcile is never served as a normal result. The frontend screens are
-the next work — see
+did not reconcile is never served as a normal result. See
 [`docs/03-api-specification.md`](docs/03-api-specification.md) for what is
 built and what is not.
+
+The screens are built on top of it: projects, upload and extraction, the review
+queue with the questions the rules raised, the IFRS 18 statement, the impact
+analysis with its waterfall, and the audit trail. Playwright drives the whole
+flow against a live API. Two decisions shape the client: the session token
+lives in an httpOnly cookie and every API call runs on the server, so no script
+in the browser can reach it; and every figure crosses as a string and is
+formatted, never computed, in the browser — the accounting stays in one place.
 
 ```bash
 make demo   # runs the whole chain over the fixture and writes an .xlsx

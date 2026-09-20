@@ -668,3 +668,31 @@ async def test_an_override_is_recorded_with_both_sides(
     assert entry["after"]["reason"]
     assert entry["actor_user_id"]
     assert entry["occurred_at"]
+
+
+async def test_accepting_an_unclassified_proposal_still_blocks_finalization(
+    api: AsyncClient, uploads_dir: Path, statement_bytes: bytes
+) -> None:
+    """Agreeing that a line could not be placed is not placing it.
+
+    Operating is IFRS 18's residual category, so a line with no category is a
+    decision nobody has made — and the gate refuses it. Reporting that here,
+    where the work still has somewhere to go, beats letting the user believe
+    they are finished and then failing reconciliation.
+    """
+    headers = await sign_up(api, "owner@example.com")
+    project, _ = await classified(api, headers, statement_bytes)
+    for row in (await classifications(api, headers, project["id"]))["items"]:
+        if row["requires_human_review"]:
+            response = await api.patch(
+                f"/api/projects/{project['id']}/classifications/{row['id']}",
+                json={"action": "ACCEPTED"},
+                headers=headers,
+            )
+            assert response.status_code == 200, response.text
+
+    finalize = await api.post(f"/api/projects/{project['id']}/finalize", headers=headers)
+
+    assert finalize.status_code == 422
+    reasons = {reason["code"] for reason in finalize.json()["blocking_reasons"]}
+    assert reasons == {"UNCLASSIFIED_LINE"}

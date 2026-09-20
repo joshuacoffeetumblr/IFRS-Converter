@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { api, type Disclaimer } from "@/lib/api";
 
 /**
@@ -29,15 +31,14 @@ export default async function HomePage() {
       </p>
 
       <div className="mt-10">
-        <button
-          type="button"
-          disabled
-          className="rounded-md border border-border bg-surface px-5 py-3 text-sm font-medium text-ink disabled:cursor-not-allowed disabled:opacity-60"
+        <Link
+          href="/projects"
+          className="inline-block rounded-md border border-accent bg-accent/10 px-5 py-3 text-sm font-medium text-accent hover:bg-accent/15"
         >
           Upload Financial Statements
-        </button>
+        </Link>
         <p className="mt-2 text-xs text-muted">
-          Phase 3에서 활성화됩니다. 현재는 Phase 1(기반 구조) 단계입니다.
+          업로드한 분석은 본인에게만 보입니다.
         </p>
       </div>
 

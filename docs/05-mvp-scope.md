@@ -114,7 +114,7 @@ waiting for PDF ingestion.
 | **6** | Reconstruction, subtotals, reconciliation gate | ✅ done 2026-09-19 — total invariance exact on every fixture; the gate blocks on an unclassified line, an unanswered question, or a subtotal IFRS 18.73 forbids |
 | **7** | Impact: KPIs, waterfall, drivers | ✅ done 2026-09-19 — the waterfall is built from the movement the gate checks, so it sums to the delta by construction; measures IFRS 18 introduced report no "before" rather than a false zero |
 | **8** | Excel export (+ PDF if time) | ✅ done 2026-09-19 — six sheets incl. audit trail and reconciliation; a figure that would lose precision fails the export rather than shipping altered; unreconciled files are watermarked on every sheet. **PDF export not built** — Excel satisfies §34. |
-| **9** | UX refinement, empty/loading/error states, responsive | Playwright covers the full §4 flow |
+| **9** | Frontend screens: projects, upload/extract, review, statement, impact, audit trail | ✅ done 2026-09-20 — Playwright drives the whole §34 flow end to end against a live API; the session token lives in an httpOnly cookie and never reaches JavaScript; every figure crosses as a string and is formatted, never computed, in the browser |
 
 **Phase 0 closed 2026-09-19.** Q1, Q2 and Q7 are resolved, so schema and
 impact-screen work is unblocked. Q3–Q6 remain open and block Phase 5 rule

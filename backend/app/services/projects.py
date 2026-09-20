@@ -11,7 +11,7 @@ from app.api.schemas.project import (
     CreateProjectRequest,
     ProjectProgress,
 )
-from app.domain.enums import ActorType, AuditAction, ProjectStatus
+from app.domain.enums import ActorType, AuditAction, Ifrs18Category, ProjectStatus
 from app.models import Project, User
 from app.repositories.projects import CompanyRepository, ProjectRepository
 from app.services import audit
@@ -152,12 +152,26 @@ async def progress_for(session: AsyncSession, project: Project) -> ProjectProgre
                 detail="These classifications have not been looked at by a person.",
             )
         )
-    if lines_total and len(classifications) < lines_total:
+    # A line the engine could not place, and nobody has placed since. The
+    # reconciliation gate refuses these too, but by then the user has been told
+    # they were ready to finalize — so they are reported here, where the work
+    # still has somewhere to go.
+    unplaced = [
+        item
+        for item in classifications
+        if item.final_ifrs18_category in (None, Ifrs18Category.UNCLASSIFIED.value)
+    ]
+    missing = lines_total - len(classifications) if lines_total else 0
+    if missing > 0 or unplaced:
         blocking.append(
             BlockingReason(
                 code="UNCLASSIFIED_LINE",
-                count=lines_total - len(classifications),
-                detail="Some extracted lines have not been classified.",
+                count=max(missing, 0) + len(unplaced),
+                detail=(
+                    "Some lines have no IFRS 18 category. Operating is the "
+                    "residual category, so an unplaced line is a decision "
+                    "nobody has made yet."
+                ),
             )
         )
     if not lines_total:

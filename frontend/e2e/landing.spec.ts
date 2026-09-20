@@ -1,14 +1,14 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * Phase 1 smoke test. The full spec §34 flow lands here in Phase 9.
+ * The landing page. The full spec §34 flow lives in `analysis-flow.spec.ts`.
  */
 test.describe("landing page", () => {
   test("shows the primary call to action", async ({ page }) => {
     await page.goto("/");
 
     await expect(page.getByRole("heading", { name: "Impact Analyzer" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Upload Financial Statements" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Upload Financial Statements" })).toBeVisible();
   });
 
   test("renders the §24 disclaimer served by the API", async ({ page }) => {
