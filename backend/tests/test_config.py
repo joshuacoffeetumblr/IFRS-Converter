@@ -177,3 +177,49 @@ def test_the_ai_assistant_is_off_until_a_key_is_configured(
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ambient")
     assert AiSettings(enabled=True).configured is True
     assert AiSettings(enabled=False).configured is False
+
+
+# ---------------------------------------------------------------------------
+# Reading settings from the environment, the way a deployment actually does
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        # The exact syntax .env.example, docker-compose.yml and the production
+        # overlay all document. It raised SettingsError and killed the process
+        # at import, so `docker compose up` could never have worked.
+        ("http://localhost:3000", ["http://localhost:3000"]),
+        (
+            "https://a.example.com,https://b.example.com",
+            ["https://a.example.com", "https://b.example.com"],
+        ),
+        (
+            "  https://a.example.com , https://b.example.com  ",
+            ["https://a.example.com", "https://b.example.com"],
+        ),
+        # A JSON array still works, because that is what pydantic-settings
+        # accepted before and somebody's deployment may be passing it.
+        ('["https://c.example.com"]', ["https://c.example.com"]),
+        ("", []),
+    ],
+)
+def test_cors_origins_parse_from_a_plain_environment_variable(
+    monkeypatch: pytest.MonkeyPatch, raw: str, expected: list[str]
+) -> None:
+    """Settings are read from the environment in every real deployment, and a
+    list-shaped field is decoded as JSON *in the environment source* — before
+    any validator runs. Constructing `Settings(cors_origins=[...])` in a test
+    bypasses that path entirely, which is how this went unnoticed."""
+    monkeypatch.setenv("IFRS18_CORS_ORIGINS", raw)
+
+    assert Settings(environment="ci").cors_origins == expected
+
+
+def test_an_unset_cors_origin_keeps_the_development_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("IFRS18_CORS_ORIGINS", raising=False)
+
+    assert Settings(environment="ci").cors_origins == ["http://localhost:3000"]

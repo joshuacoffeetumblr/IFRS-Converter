@@ -8,15 +8,16 @@ requires reconciliation tolerances to be explicit.
 
 from __future__ import annotations
 
+import json
 import os
 import secrets
 from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, PostgresDsn, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class ClassificationSettings(BaseSettings):
@@ -142,8 +143,15 @@ class Settings(BaseSettings):
         default=PostgresDsn("postgresql+asyncpg://ifrs18:ifrs18@localhost:5432/ifrs18"),
     )
 
-    #: Comma-separated in the environment; parsed into a list by pydantic.
-    cors_origins: list[str] = ["http://localhost:3000"]
+    #: Comma-separated in the environment.
+    #:
+    #: `NoDecode` is load-bearing. pydantic-settings decodes a complex field —
+    #: anything list-shaped — as JSON *in the environment source*, before any
+    #: validator runs, so `IFRS18_CORS_ORIGINS=https://app.example.com` raised
+    #: `SettingsError` and the process died at import. That is the syntax
+    #: `.env.example`, `docker-compose.yml` and the production overlay all
+    #: document, which meant `docker compose up` could never have worked.
+    cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
 
     auth: AuthSettings = Field(default_factory=AuthSettings)
     classification: ClassificationSettings = Field(default_factory=ClassificationSettings)
@@ -154,9 +162,19 @@ class Settings(BaseSettings):
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_origins(cls, value: object) -> object:
-        if isinstance(value, str):
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
-        return value
+        """Accept a comma-separated list, or a JSON array for compatibility."""
+        if not isinstance(value, str):
+            return value
+        text = value.strip()
+        if text.startswith("["):
+            try:
+                decoded = json.loads(text)
+            except json.JSONDecodeError:
+                pass
+            else:
+                if isinstance(decoded, list):
+                    return [str(origin).strip() for origin in decoded if str(origin).strip()]
+        return [origin.strip() for origin in text.split(",") if origin.strip()]
 
     def check_production_ready(self) -> None:
         """Fail fast on configuration that is only safe in development.
