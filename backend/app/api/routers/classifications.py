@@ -16,7 +16,14 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import CurrentUser, SessionDep, ensure_not_finalized, parse_uuid
+from app.adapters.ai.factory import build_advisors
+from app.api.deps import (
+    CurrentUser,
+    SessionDep,
+    SettingsDep,
+    ensure_not_finalized,
+    parse_uuid,
+)
 from app.api.errors import NotFoundError, UnprocessableStateError
 from app.api.schemas.classification import (
     ClassificationDetailResponse,
@@ -189,6 +196,7 @@ async def classify(
     payload: ClassifyRequest,
     session: SessionDep,
     user: CurrentUser,
+    settings: SettingsDep,
 ) -> ClassifyResponse:
     """Classify every extracted line.
 
@@ -198,6 +206,7 @@ async def classify(
     """
     project = await _project(session, project_id, user)
     ensure_not_finalized(project)
+    advisors = build_advisors(settings)
     try:
         run = await classify_project(
             session,
@@ -205,6 +214,7 @@ async def classify(
             use_ai_assistant=payload.use_ai_assistant,
             preserve_user_overrides=payload.preserve_user_overrides,
             actor_id=user.id,
+            advisors=advisors,
         )
     except ClassificationError as exc:
         raise UnprocessableStateError(
@@ -217,7 +227,7 @@ async def classify(
         rule_set_version=rule_set_version(),
         preserved_overrides=run.preserved_overrides,
         discarded=run.discarded,
-        ai_assistant_available=get_engine().has_advisor,
+        ai_assistant_available=advisors.available,
     )
 
 

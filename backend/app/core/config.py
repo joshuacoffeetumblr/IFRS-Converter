@@ -77,6 +77,39 @@ class UploadSettings(BaseSettings):
     directory: Path = Path("var/uploads")
 
 
+class AiSettings(BaseSettings):
+    """The AI advisor (spec §1 layer 2, §12).
+
+    **Off unless a key is present.** The product works without it: rules decide
+    what they can, and everything else goes to a person. An advisor adds
+    suggestions to that queue; it never removes the queue.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="IFRS18_AI_")
+
+    #: Set to false to keep the assistant off even where a key is configured.
+    enabled: bool = True
+    api_key: str | None = None
+    model: str = "claude-opus-5"
+    #: Classification is a short, well-specified judgement, not open-ended
+    #: reasoning. Raise it if a statement's captions are genuinely obscure.
+    effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
+    max_tokens: int = 2_000
+    timeout_seconds: float = 30.0
+    #: One repair round trip when the output does not validate (spec §12).
+    repair_attempts: int = 1
+
+    @property
+    def configured(self) -> bool:
+        """Whether an advisor can actually be built.
+
+        The key is read from `IFRS18_AI_API_KEY` or the SDK's own
+        `ANTHROPIC_API_KEY`; without either there is nothing to call, and
+        saying so here keeps every caller from having to check twice.
+        """
+        return self.enabled and bool(self.api_key or os.environ.get("ANTHROPIC_API_KEY"))
+
+
 class AuthSettings(BaseSettings):
     """Bearer-token settings (spec §31)."""
 
@@ -116,6 +149,7 @@ class Settings(BaseSettings):
     classification: ClassificationSettings = Field(default_factory=ClassificationSettings)
     reconciliation: ReconciliationSettings = Field(default_factory=ReconciliationSettings)
     upload: UploadSettings = Field(default_factory=UploadSettings)
+    ai: AiSettings = Field(default_factory=AiSettings)
 
     @field_validator("cors_origins", mode="before")
     @classmethod

@@ -15,6 +15,7 @@ dependencies = [
     "structlog>=24.4",
     "python-multipart>=0.0.17",
     "openpyxl>=3.1.5",
+    "pdfplumber>=0.11.4",
     "pyjwt>=2.10",
 ]
 
@@ -27,6 +28,9 @@ dev = [
     "ruff>=0.8",
     "mypy>=1.13",
     "types-openpyxl>=3.1",
+    # Fixtures only: generates the synthetic Korean PDFs the reader is
+    # tested against, so they stay reviewable as code rather than as binary.
+    "reportlab>=4.2",
 ]
 
 [build-system]
@@ -74,6 +78,8 @@ ignore = [
 "tests/test_api_classification.py" = ["S101", "S105", "S106", "ANN201", "ANN001", "RUF001"]
 "tests/test_api_review.py" = ["S101", "S105", "S106", "ANN201", "ANN001", "RUF001"]
 "tests/test_question_catalog.py" = ["S101", "RUF001"]
+"tests/test_pdf_ingest.py" = ["S101", "RUF001"]
+"tests/fixtures/korean_pdf_statement.py" = ["RUF001"]
 "tests/test_api_analysis.py" = ["S101", "S105", "S106", "ANN201", "ANN001", "RUF001"]
 "tests/test_api_catalog.py" = ["S101", "S105", "S106", "ANN201", "ANN001", "RUF001"]
 "tests/test_upload_security.py" = ["S101", "S105", "S106", "ANN201", "ANN001", "RUF001"]

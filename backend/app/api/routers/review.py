@@ -11,7 +11,14 @@ from __future__ import annotations
 from fastapi import APIRouter
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import CurrentUser, SessionDep, ensure_not_finalized, parse_uuid
+from app.adapters.ai.factory import build_advisors
+from app.api.deps import (
+    CurrentUser,
+    SessionDep,
+    SettingsDep,
+    ensure_not_finalized,
+    parse_uuid,
+)
 from app.api.errors import NotFoundError, UnprocessableStateError
 from app.api.routers.classifications import (
     question_response,
@@ -26,6 +33,7 @@ from app.api.schemas.classification import (
     QuestionsResponse,
     SetActivityRequest,
 )
+from app.core.config import Settings
 from app.domain.enums import ActivityType
 from app.models import BusinessActivity, Ifrs18Classification, Project, ReviewQuestion, User
 from app.repositories.projects import ProjectRepository
@@ -82,6 +90,7 @@ async def answer(
     payload: AnswerRequest,
     session: SessionDep,
     user: CurrentUser,
+    settings: SettingsDep,
 ) -> AnswerResponse:
     """Answer a question, then re-run classification so the answer takes effect.
 
@@ -117,7 +126,7 @@ async def answer(
             title="Answer rejected", code=exc.code, detail=exc.reason
         ) from exc
 
-    run = await _reclassify(session, project=project, user=user)
+    run = await _reclassify(session, project=project, user=user, settings=settings)
     return AnswerResponse(
         question=question_response(await _reload(session, question, project)),
         summary=summarize(
@@ -136,7 +145,7 @@ async def _reload(
 
 
 async def _reclassify(
-    session: AsyncSession, *, project: Project, user: User
+    session: AsyncSession, *, project: Project, user: User, settings: Settings
 ) -> list[Ifrs18Classification] | None:
     """Re-run the engine, preserving human decisions.
 
@@ -146,7 +155,11 @@ async def _reclassify(
     """
     try:
         run = await classify_project(
-            session, project=project, preserve_user_overrides=True, actor_id=user.id
+            session,
+            project=project,
+            preserve_user_overrides=True,
+            actor_id=user.id,
+            advisors=build_advisors(settings),
         )
     except ClassificationError:
         return None
@@ -182,6 +195,7 @@ async def put_activity(
     payload: SetActivityRequest,
     session: SessionDep,
     user: CurrentUser,
+    settings: SettingsDep,
 ) -> ActivityResponse:
     """Confirm, deny or withdraw a main business activity (spec §10).
 
@@ -202,5 +216,5 @@ async def put_activity(
     )
     # A confirmed activity changes what the rules decide, so the project's
     # classifications are brought back into line with it immediately.
-    await _reclassify(session, project=project, user=user)
+    await _reclassify(session, project=project, user=user, settings=settings)
     return _activity_response(activity)

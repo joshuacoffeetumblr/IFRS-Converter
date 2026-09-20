@@ -25,11 +25,16 @@ from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adapters.ai.factory import Advisors
 from app.data.catalog import get_dictionary
 from app.data.question_catalog import QuestionSpec, activity_question_key, get_questions
-from app.data.rule_catalog import rule_set_version
+from app.data.rule_catalog import get_engine, rule_set_version
 from app.db.base import MONEY_SCALE
-from app.domain.classification import ClassificationDecision
+from app.domain.classification import (
+    ClassificationAdvisor,
+    ClassificationDecision,
+    ClassificationEngine,
+)
 from app.domain.enums import (
     ActivityType,
     ActorType,
@@ -237,6 +242,7 @@ async def classify_project(
     use_ai_assistant: bool = False,
     preserve_user_overrides: bool = True,
     actor_id: uuid.UUID | None = None,
+    advisors: Advisors | None = None,
 ) -> ClassificationRun:
     """Classify every extracted line, and raise the questions the rules need."""
     statement = await StatementRepository(session).primary_for_project(project.id)
@@ -258,10 +264,26 @@ async def classify_project(
         and line.normalized_account is not None
     }
 
-    report = _with_manual_mappings(normalize_statement(source, get_dictionary()), manual_codes)
+    # The AI layer is consulted only where the dictionary and the rules could
+    # not decide, and only when the caller asked for it (spec §1).
+    advisors = advisors or Advisors()
+    assisted = use_ai_assistant and advisors.available
+
+    report = _with_manual_mappings(
+        normalize_statement(
+            source,
+            get_dictionary(),
+            advisor=advisors.account if assisted else None,
+        ),
+        manual_codes,
+    )
     facts = await entity_facts(session, project, lines)
     classified = classify_normalized(
-        report, facts, use_advisor=use_ai_assistant, line_id_of=line_key
+        report,
+        facts,
+        use_advisor=assisted,
+        line_id_of=line_key,
+        engine=_engine_with(advisors.classification) if assisted else None,
     )
     await _store_normalization(session, report=report, line_by_ordinal=line_by_ordinal)
 
@@ -334,12 +356,23 @@ async def classify_project(
             "preserved_overrides": preserved,
             "discarded": discarded,
             "rule_set_version": version,
-            # Recorded because it is the one input to a run that cannot be
+            # Recorded because these are the inputs to a run that cannot be
             # reconstructed from the rows afterwards.
             "ai_assistant_requested": use_ai_assistant,
+            "ai_assistant_used": assisted,
         },
     )
     return run
+
+
+def _engine_with(advisor: ClassificationAdvisor | None) -> ClassificationEngine:
+    """The rule set, with an advisor attached.
+
+    A new engine rather than a mutated cached one: the rule set is shared
+    process-wide, and whether a given run consulted a model has to stay a
+    property of that run.
+    """
+    return ClassificationEngine(get_engine().rules, advisor=advisor)
 
 
 # ---------------------------------------------------------------------------

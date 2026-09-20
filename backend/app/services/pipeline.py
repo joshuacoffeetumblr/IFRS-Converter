@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from app.data.catalog import get_dictionary
 from app.data.rule_catalog import get_engine
-from app.domain.classification import ClassificationDecision
+from app.domain.classification import ClassificationDecision, ClassificationEngine
 from app.domain.extraction import ExtractedLine, ExtractedStatement
 from app.domain.impact import ImpactAnalysis, analyse
 from app.domain.normalization import NormalizationReport, normalize_statement
@@ -69,6 +69,7 @@ def classify_normalized(
     *,
     use_advisor: bool = True,
     line_id_of: Callable[[ExtractedLine], str] = line_label,
+    engine: ClassificationEngine | None = None,
 ) -> tuple[ClassifiedLine, ...]:
     """Classify lines that have already been mapped to canonical accounts.
 
@@ -82,7 +83,10 @@ def classify_normalized(
     reconciliation targets, not classifiable facts.
     """
     dictionary = get_dictionary()
-    engine = get_engine()
+    # The default engine has no advisor, so a caller that wants the AI layer
+    # passes one in. Deciding it here would make "is AI on?" a property of a
+    # module-level cache rather than of the request.
+    engine = engine or get_engine()
 
     results: list[ClassifiedLine] = []
     for normalized in report.lines:

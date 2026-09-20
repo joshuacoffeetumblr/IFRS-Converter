@@ -21,9 +21,10 @@ from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.ingest import csv as csv_ingest
+from app.adapters.ingest import pdf as pdf_ingest
 from app.adapters.ingest import xlsx as xlsx_ingest
 from app.adapters.ingest.grid import ExtractOptions, StatementNotFoundError
-from app.adapters.storage.files import CSV_MIME, XLS_MIME, XLSX_MIME
+from app.adapters.storage.files import CSV_MIME, PDF_MIME, XLS_MIME, XLSX_MIME
 from app.domain.enums import (
     ActorType,
     AuditAction,
@@ -71,8 +72,10 @@ def read_statement(path: Path, mime_type: str, options: ExtractOptions) -> Extra
         return xlsx_ingest.read_income_statement(path, options=options)
     if mime_type == CSV_MIME:
         return csv_ingest.read_income_statement(path, options=options)
+    if mime_type == PDF_MIME:
+        return pdf_ingest.read_income_statement(path, options=options)
     raise ExtractionError(
-        f"{mime_type} cannot be extracted yet. PDF support is not built.",
+        f"{mime_type} cannot be extracted.",
         code="unsupported-for-extraction",
     )
 

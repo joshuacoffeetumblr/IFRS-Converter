@@ -346,17 +346,40 @@ async def test_an_unreadable_file_leaves_the_failure_recorded(
     assert stored_upload.parse_error
 
 
-async def test_a_pdf_is_stored_but_cannot_be_extracted_yet(
-    api: AsyncClient, uploads_dir: Path
+async def test_a_pdf_statement_is_extracted_too(
+    api: AsyncClient, uploads_dir: Path, tmp_path: Path
 ) -> None:
-    """PDF ingest is out of MVP scope, and the endpoint says so rather than half-reading it."""
-    headers = await sign_up(api, "owner@example.com")
-    project, _ = await uploaded(api, headers, b"%PDF-1.7\n%\xe2\xe3\xcf\xd3\n", filename="fs.pdf")
+    """Three formats, one pipeline (Phase 3c)."""
+    from tests.fixtures.korean_pdf_statement import build_pdf
 
+    headers = await sign_up(api, "owner@example.com")
+    data = build_pdf(tmp_path / "source.pdf").read_bytes()
+
+    project, _ = await uploaded(api, headers, data, filename="손익계산서.pdf")
+    response = await api.post(f"/api/projects/{project['id']}/extract", json={}, headers=headers)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["report"]["passed"] is True
+    lines = (await api.get(f"/api/projects/{project['id']}/lines", headers=headers)).json()
+    # Spec §18: a PDF figure points at the page it was printed on.
+    assert all(item["source_locator"]["page"] for item in lines["items"])
+
+
+async def test_a_scanned_pdf_is_refused_rather_than_guessed_at(
+    api: AsyncClient, uploads_dir: Path, tmp_path: Path
+) -> None:
+    """OCR is out of scope (§33): a misread digit looks exactly like a right one."""
+    from tests.fixtures.korean_pdf_statement import build_pdf
+
+    headers = await sign_up(api, "owner@example.com")
+    data = build_pdf(tmp_path / "scan.pdf", scanned=True).read_bytes()
+
+    project, _ = await uploaded(api, headers, data, filename="scan.pdf")
     response = await api.post(f"/api/projects/{project['id']}/extract", json={}, headers=headers)
 
     assert response.status_code == 422
-    assert response.json()["type"].endswith("/unsupported-for-extraction")
+    assert response.json()["type"].endswith("/statement-not-found")
+    assert "scan" in response.json()["detail"]
 
 
 async def test_a_csv_statement_is_extracted_too(

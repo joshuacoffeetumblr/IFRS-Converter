@@ -141,6 +141,9 @@ class Grid:
     sheet: str | None = None
     #: Rows of preamble text scanned for the presentation unit.
     preamble: tuple[str, ...] = field(default=())
+    #: Set by formats that have pages rather than sheets, so a figure extracted
+    #: from a PDF still points at where it was printed (spec §18).
+    page: int | None = None
 
     def cell(self, row: int, column: int) -> GridCell | None:
         for grid_row in self.rows:
@@ -308,6 +311,7 @@ def extract_statement(grid: Grid, options: ExtractOptions | None = None) -> Extr
                         if amount_cell.column_label
                         else None
                     ),
+                    page=grid.page,
                 ),
             )
         )
