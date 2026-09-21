@@ -29,6 +29,21 @@ export async function signIn(_: AuthState, formData: FormData): Promise<AuthStat
     await startSession(token.access_token, token.expires_in);
   } catch (error) {
     if (error instanceof ApiError) {
+      // A failure the server could not have prevented is not the user's
+      // mistake. Shown in the API's English beside "wrong password", it invites
+      // them to keep retyping a password that was always correct.
+      if (error.code === "database-unavailable") {
+        return {
+          error:
+            "서버가 데이터베이스에 연결되지 않아 계정을 만들거나 로그인할 수 없습니다. " +
+            "입력하신 정보의 문제가 아닙니다.",
+        };
+      }
+      if (error.status >= 500) {
+        return {
+          error: "서버에서 예기치 않은 오류가 발생했습니다. 입력하신 정보의 문제가 아닙니다.",
+        };
+      }
       // The API's own wording says which rule was broken — a password that is
       // too short, an address already registered — so it is shown as-is.
       return { error: error.message };

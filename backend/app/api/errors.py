@@ -13,6 +13,7 @@ from typing import Any
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import DBAPIError, InterfaceError, OperationalError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.logging import get_logger
@@ -103,6 +104,21 @@ class UnprocessableStateError(ApiProblemError):
         )
 
 
+#: Raised when the database cannot be *reached* — as distinct from a query
+#: that reached it and was rejected. SQLAlchemy raises `OperationalError` for a
+#: refused or dropped connection and `InterfaceError` for a driver-level
+#: failure; both wrap the driver's own exception.
+_UNREACHABLE = (OperationalError, InterfaceError)
+
+
+def _database_is_unreachable(exc: BaseException) -> bool:
+    if isinstance(exc, _UNREACHABLE):
+        return True
+    if isinstance(exc, DBAPIError) and exc.connection_invalidated:
+        return True
+    return isinstance(exc, ConnectionError | OSError)
+
+
 def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(ApiProblemError)
     async def _problem(request: Request, exc: ApiProblemError) -> JSONResponse:
@@ -116,6 +132,45 @@ def install_error_handlers(app: FastAPI) -> None:
             status_code=exc.status_code,
             title=str(exc.detail),
             code="http-error",
+        ).to_response(request)
+
+    @app.exception_handler(Exception)
+    async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
+        """The last resort, and the one that was missing.
+
+        Without it Starlette answers an unexpected failure with the bare text
+        ``Internal Server Error``. That is not a problem document, so a client
+        has nothing to show but "something went wrong" — and the single most
+        likely cause in a fresh deployment, an API that cannot reach its
+        database, looked exactly like a bug in the sign-up form.
+
+        The message names the dependency and never the connection string: a
+        DSN carries the database password (spec §32).
+        """
+        if _database_is_unreachable(exc):
+            log.error("database_unreachable", error_type=type(exc).__name__)
+            return ApiProblemError(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                title="The database is not reachable",
+                code="database-unavailable",
+                detail=(
+                    "The API is running but cannot reach its database, so nothing "
+                    "can be read or saved. This is a deployment problem, not a "
+                    "problem with what you entered. Check that the database is "
+                    "running and that IFRS18_DATABASE_URL points at it; "
+                    "GET /api/ready reports the same check on its own."
+                ),
+            ).to_response(request)
+
+        # Nothing is echoed back: an unexpected exception's message can carry
+        # a query, a row, or a credential (spec §32). The type is logged so the
+        # failure is findable; the client is told only that it was unexpected.
+        log.exception("unhandled_exception", error_type=type(exc).__name__)
+        return ApiProblemError(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            title="Unexpected server error",
+            code="internal-error",
+            detail="The request failed for a reason this API did not anticipate.",
         ).to_response(request)
 
     @app.exception_handler(RequestValidationError)

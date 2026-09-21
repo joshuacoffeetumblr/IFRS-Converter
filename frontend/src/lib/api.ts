@@ -576,6 +576,37 @@ export interface CreateProjectInput {
 
 // ---------------------------------------------------------------------------
 
+export type Reachability =
+  | { ok: true }
+  /** The API answered, but told us it cannot reach its database. */
+  | { ok: false; reason: "database"; apiUrl: string }
+  /** Nothing answered at `apiUrl` at all. */
+  | { ok: false; reason: "api"; apiUrl: string };
+
+/**
+ * Whether the app can do anything at all, checked before asking for a password.
+ *
+ * A deployment whose API is up but whose database is not fails at exactly the
+ * same place as a wrong password: the request fails and the form comes back.
+ * Probing first turns "계정 만들기가 안 돼요" into a sentence naming the piece
+ * that is down, which is the difference between a bug report and a fix.
+ *
+ * It never throws. A diagnostic that can break the page it diagnoses is worse
+ * than no diagnostic.
+ */
+export async function checkReachable(): Promise<Reachability> {
+  const apiUrl = apiBaseUrl();
+  try {
+    const response = await fetch(`${apiUrl}/api/ready`, {
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+    });
+    return response.ok ? { ok: true } : { ok: false, reason: "database", apiUrl };
+  } catch {
+    return { ok: false, reason: "api", apiUrl };
+  }
+}
+
 export const api = {
   health: () => request<Health>("/health", { authenticated: false }),
   disclaimer: () => request<Disclaimer>("/meta/disclaimer", { authenticated: false }),

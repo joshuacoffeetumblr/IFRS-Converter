@@ -26,8 +26,12 @@ export function SubmitButton({
   return (
     <button
       type="submit"
-      disabled={pending || props.disabled}
       {...props}
+      // After the spread, not before: a caller that passes `disabled` of its
+      // own — every step in the pipeline does — would otherwise overwrite the
+      // pending state this component exists to apply, and the double-click it
+      // guards against would be back.
+      disabled={pending || props.disabled}
       className={clsx(
         "rounded-md border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60",
         variant === "primary" && "border-accent bg-accent/10 text-accent hover:bg-accent/15",
