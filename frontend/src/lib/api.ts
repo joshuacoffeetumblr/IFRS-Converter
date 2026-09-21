@@ -251,6 +251,24 @@ export interface SourceLocator {
   column: string | null;
   cell: string | null;
   page: number | null;
+  /** An XBRL filing has no grid: the taxonomy concept and the context that
+   *  scoped it are what a reader looks the figure up by. */
+  concept: string | null;
+  context: string | null;
+}
+
+/**
+ * How a figure is pointed back at its source (spec §18).
+ *
+ * Which fields are set depends on the format, and this only knew about cells —
+ * so a PDF line and an XBRL line both rendered as "—", dropping traceability
+ * the API had already returned.
+ */
+export function sourceReference(locator: SourceLocator): string {
+  if (locator.concept) return locator.concept;
+  if (locator.cell) return locator.sheet ? `${locator.sheet}!${locator.cell}` : locator.cell;
+  if (locator.page) return `p.${locator.page}`;
+  return "—";
 }
 
 export interface Line {

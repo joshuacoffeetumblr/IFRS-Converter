@@ -37,7 +37,7 @@ export function ExtractionControls({
     <section className="grid gap-4 sm:grid-cols-2">
       <Step
         title="1. 재무제표 업로드"
-        description="XLSX 또는 CSV. 형식은 파일 내용으로 판별하며, 같은 파일을 다시 올려도 중복 생성되지 않습니다."
+        description="XBRL·XLSX·CSV·PDF. 형식은 파일 내용으로 판별하며, 같은 파일을 다시 올려도 중복 생성되지 않습니다. DART 공시의 XBRL 원본(.xbrl)을 올리면 계정과목을 글자로 맞출 필요가 없고, 주석의 금융수익·기타수익 내역까지 그대로 읽습니다."
         action={uploadStatement}
         projectId={projectId}
         disabled={finalized}
@@ -45,7 +45,7 @@ export function ExtractionControls({
         <input
           type="file"
           name="file"
-          accept=".xlsx,.xls,.csv"
+          accept=".xbrl,.xlsx,.xls,.csv,.pdf"
           required
           className="block w-full text-xs text-muted file:mr-3 file:rounded-md file:border file:border-border file:bg-canvas file:px-3 file:py-1.5 file:text-xs file:text-ink"
         />

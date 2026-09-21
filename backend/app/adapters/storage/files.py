@@ -32,11 +32,15 @@ from pathlib import Path
 XLSX_MAGIC = b"PK\x03\x04"  # XLSX and XLSM are ZIP archives
 XLS_MAGIC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"  # the older OLE2 format
 PDF_MAGIC = b"%PDF-"
+#: An XBRL instance is XML. It has no magic number of its own, so it is
+#: recognised by the XML declaration plus the extension a filing uses.
+XML_MAGIC = b"<?xml"
 
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 XLS_MIME = "application/vnd.ms-excel"
 CSV_MIME = "text/csv"
 PDF_MIME = "application/pdf"
+XBRL_MIME = "application/xbrl+xml"
 
 CHUNK_SIZE = 64 * 1024
 
@@ -49,6 +53,7 @@ SUFFIX_BY_MIME = {
     XLS_MIME: ".xls",
     CSV_MIME: ".csv",
     PDF_MIME: ".pdf",
+    XBRL_MIME: ".xbrl",
 }
 
 #: The ratio of uncompressed to compressed bytes beyond which an archive is
@@ -101,10 +106,19 @@ def sniff_mime_type(head: bytes, *, filename: str) -> str:
         return XLS_MIME
     if head.startswith(PDF_MAGIC):
         return PDF_MIME
-    if Path(filename).suffix.lower() in {".csv", ".tsv", ".txt"}:
+    suffix = Path(filename).suffix.lower()
+    # XBRL is XML, and so is a taxonomy schema and a linkbase — which a filing
+    # ships alongside the instance and which carry no figures at all. Both the
+    # content and the extension have to agree before this is read as a filing,
+    # so uploading the wrong file out of the set is refused here rather than
+    # producing an empty statement later.
+    if head.startswith(XML_MAGIC) and suffix in {".xbrl", ".xml"}:
+        return XBRL_MIME
+    if suffix in {".csv", ".tsv", ".txt"}:
         return CSV_MIME
     raise UploadRejectedError(
-        "The file is not a workbook, CSV or PDF. Its contents do not match any supported format.",
+        "The file is not a workbook, CSV, PDF or XBRL filing. Its contents do "
+        "not match any supported format.",
         code="unsupported-media-type",
     )
 

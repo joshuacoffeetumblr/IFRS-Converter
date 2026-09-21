@@ -67,7 +67,10 @@ seed: ## Load the account catalog and IFRS 18 rule set into the database
 
 .PHONY: validate
 validate: ## Run a real statement through every stage: make validate f=statement.xlsx
-	cd $(BACKEND) && .venv/bin/python -m app.cli validate "$(abspath $(f))"
+# `args` forwards flags to the CLI. An XBRL filing needs them: it carries every
+# basis and every period at once, so which statement to read has to be said.
+#   make validate f=filing.xbrl args="--basis SEPARATE --from 2026-01-01 --to 2026-06-30"
+	cd $(BACKEND) && .venv/bin/python -m app.cli validate "$(abspath $(f))" $(args)
 
 .PHONY: demo
 demo: ## Run the whole pipeline over the fixture and write an Excel export

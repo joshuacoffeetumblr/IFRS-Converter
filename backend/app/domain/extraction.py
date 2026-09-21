@@ -34,6 +34,12 @@ class SourceLocator:
     column: str | None = None
     cell: str | None = None
     page: int | None = None
+    #: For an XBRL filing, where a figure came from is not a cell. It is the
+    #: taxonomy concept that was reported and the context that scoped it —
+    #: which period, consolidated or separate. Those are the two things a
+    #: reader needs to find the fact again in the original instance.
+    concept: str | None = None
+    context: str | None = None
 
     def as_dict(self) -> dict[str, object]:
         """The locator as JSON, omitting what does not apply to the format.

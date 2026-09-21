@@ -17,6 +17,13 @@
 > same pipeline as XLSX and CSV, with the page number recorded in the source
 > locator. A PDF with no text layer is refused — see below.
 >
+> **XBRL ingest is built** (2026-09-21). A DART instance document is read
+> directly from the taxonomy rather than from a grid, so nothing about the
+> statement is inferred from its captions. Which statement is read comes from
+> the **project** — its basis and its reporting period — because a filing
+> carries every basis and every period at once; a period the filing does not
+> report is an error naming the ones it does, never a fallback. See below.
+>
 > **Added beyond the original draft:** `POST /projects/{id}/reopen`, without
 > which finalization would be a one-way door; `GET /projects/{id}/exports`; and
 > `GET /config/classification`, listed in §15 as supporting.
@@ -43,6 +50,15 @@
     "instance": "/api/projects/…/finalize",
     "checks": [ … ] }
   ```
+  **Every** failure has this shape, including one nobody anticipated. A
+  last-resort handler turns an unhandled exception into `500 internal-error`
+  and an unreachable database into `503 database-unavailable`; neither echoes
+  the exception's own message, because it can carry a row, a query or a
+  credential (spec §32). Before that handler existed, a deployment whose API
+  could not reach its database answered the sign-up request with the bare text
+  `Internal Server Error` — which, arriving where a wrong password arrives,
+  read as "sign-up is broken" rather than "the database is down".
+  `GET /api/ready` reports the same check on its own.
 - Idempotency: `POST` routes that create work accept `Idempotency-Key`.
 
 ## 2. Endpoints
@@ -91,7 +107,11 @@ anything is recorded:
 
 - The format is **sniffed from the leading bytes**, never taken from the
   client's `Content-Type` or filename; the allow-list is `xlsx`, `xls`, `csv`,
-  `pdf` (CSV alone is identified by extension, since it has no magic number).
+  `pdf`, `xbrl` (CSV alone is identified by extension, since it has no magic
+  number). An XBRL instance is XML, and so are the schema and linkbases a DART
+  filing ships beside it — which carry no figures — so it is accepted only when
+  the content *and* the `.xbrl`/`.xml` extension agree, and the instance is
+  named in the rejection.
 - The size limit is applied mid-stream, so an oversize upload is abandoned
   rather than measured once it is already in memory.
 - A workbook's uncompressed size and compression ratio are checked, because a
@@ -128,6 +148,13 @@ belonging to another user is `404`.
 Every field is optional and every one is auto-detected; they exist to override a
 misdetection. `period_index` selects the column — `0` current, `1` comparative.
 Omitting `uploaded_file_id` uses the project's most recent upload.
+
+For an **XBRL** upload none of the grid fields apply: there is no sheet, no
+header row and no column. What decides the reading is the project's `basis` and
+`period_start`/`period_end`, which the server supplies. A period the filing does
+not cover is `422 statement-not-found` listing the periods it does report, and a
+basis it does not file is the same — silently returning the nearest period would
+produce a statement that reconciles perfectly and answers a different question.
 
 Extraction runs **synchronously** and returns `200`. The `202`/job shape in the
 original draft is deferred with the rest of the job machinery: a statement of
@@ -179,7 +206,8 @@ The project's statements, oldest first. Empty before extraction.
     "normalized_account_code": "INTEREST_INCOME",
     "note_references": ["주석 25"],
     "source_locator": { "source_file": "…", "sheet": "손익계산서",
-                        "row": 17, "column": "D", "cell": "D17" } } ],
+                        "row": 17, "column": "D", "cell": "D17",
+                        "concept": null, "context": null } } ],
   "report": {
     "passed": true, "blockers": [], "signs_inferred": false,
     "checks": [

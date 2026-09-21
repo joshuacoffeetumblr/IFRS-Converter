@@ -703,3 +703,127 @@ async def test_marking_a_line_as_a_subtotal_drops_its_account(
     assert response.status_code == 200, response.text
     assert response.json()["is_subtotal"] is True
     assert response.json()["normalized_account_code"] is None
+
+
+# ---------------------------------------------------------------------------
+# XBRL, where the project decides what "the statement" means
+# ---------------------------------------------------------------------------
+
+
+async def test_an_xbrl_filing_is_extracted_too(
+    api: AsyncClient, uploads_dir: Path, tmp_path: Path
+) -> None:
+    from tests.fixtures.xbrl_filing import build_xbrl
+
+    headers = await sign_up(api, "owner@example.com")
+    data = build_xbrl(tmp_path / "filing.xbrl").read_bytes()
+
+    project = await create(
+        api, headers, period_start="2026-01-01", period_end="2026-06-30", fiscal_year=2026
+    )
+    upload = await post_file(api, headers, project["id"], data, filename="filing.xbrl")
+    assert upload.status_code == 201, upload.text
+    response = await api.post(f"/api/projects/{project['id']}/extract", json={}, headers=headers)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["report"]["passed"] is True
+    # Nothing was inferred: the taxonomy stated every sign.
+    assert response.json()["report"]["signs_inferred"] is False
+
+
+async def test_an_xbrl_line_points_at_its_concept(
+    api: AsyncClient, uploads_dir: Path, tmp_path: Path
+) -> None:
+    """Spec §18. A cell reference means nothing in a filing with no grid; the
+    concept and the context are what an auditor can look up."""
+    from tests.fixtures.xbrl_filing import build_xbrl
+
+    headers = await sign_up(api, "owner@example.com")
+    data = build_xbrl(tmp_path / "filing.xbrl").read_bytes()
+
+    project = await create(
+        api, headers, period_start="2026-01-01", period_end="2026-06-30", fiscal_year=2026
+    )
+    await post_file(api, headers, project["id"], data, filename="filing.xbrl")
+    await api.post(f"/api/projects/{project['id']}/extract", json={}, headers=headers)
+
+    lines = (await api.get(f"/api/projects/{project['id']}/lines", headers=headers)).json()
+    assert all(item["source_locator"]["concept"] for item in lines["items"])
+
+
+async def test_the_projects_basis_chooses_between_the_two_statements(
+    api: AsyncClient, uploads_dir: Path, tmp_path: Path
+) -> None:
+    """The filing holds both, complete and internally consistent.
+
+    Every other format shows one statement per file, so the basis has never
+    mattered to extraction before. Here, reading the wrong one produces figures
+    that reconcile perfectly and belong to a different entity.
+    """
+    from decimal import Decimal
+
+    from tests.fixtures.xbrl_filing import CURRENT, FACE, Fact, Filing, build_xbrl
+
+    filing = Filing()
+    filing.add(CURRENT, "ifrs-full:ConsolidatedMember", FACE)
+    filing.add(
+        CURRENT,
+        "ifrs-full:SeparateMember",
+        tuple(Fact(fact.concept, fact.value * 2) for fact in FACE),
+    )
+    data = build_xbrl(tmp_path / "filing.xbrl", filing).read_bytes()
+
+    headers = await sign_up(api, "owner@example.com")
+    revenues = {}
+    for basis in ("CONSOLIDATED", "SEPARATE"):
+        project = await create(
+            api,
+            headers,
+            basis=basis,
+            period_start="2026-01-01",
+            period_end="2026-06-30",
+            fiscal_year=2026,
+        )
+        await post_file(api, headers, project["id"], data, filename="filing.xbrl")
+        await api.post(f"/api/projects/{project['id']}/extract", json={}, headers=headers)
+        lines = (await api.get(f"/api/projects/{project['id']}/lines", headers=headers)).json()
+        revenues[basis] = next(
+            Decimal(item["amount"]) for item in lines["items"] if "매출액" in item["raw_label"]
+        )
+
+    assert revenues["CONSOLIDATED"] == Decimal(1000)
+    assert revenues["SEPARATE"] == Decimal(2000)
+
+
+async def test_a_period_the_filing_does_not_cover_is_refused(
+    api: AsyncClient, uploads_dir: Path, tmp_path: Path
+) -> None:
+    """A filing carries several periods, so there is always *something* to read.
+
+    Reading the nearest one would be a silent answer to a question nobody
+    asked, so the error names the periods the filing does report instead.
+    """
+    from tests.fixtures.xbrl_filing import build_xbrl
+
+    headers = await sign_up(api, "owner@example.com")
+    data = build_xbrl(tmp_path / "filing.xbrl").read_bytes()
+
+    project = await create(api, headers)  # 2025-01-01 ~ 2025-12-31
+    await post_file(api, headers, project["id"], data, filename="filing.xbrl")
+    response = await api.post(f"/api/projects/{project['id']}/extract", json={}, headers=headers)
+
+    assert response.status_code == 422
+    assert response.json()["type"].endswith("/statement-not-found")
+    assert "2026-01-01 to 2026-06-30" in response.json()["detail"]
+
+
+async def test_a_taxonomy_schema_upload_is_refused(api: AsyncClient, uploads_dir: Path) -> None:
+    """A DART filing is a set of files; only the instance holds figures."""
+    headers = await sign_up(api, "owner@example.com")
+    schema = b'<?xml version="1.0"?><xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"/>'
+
+    project = await create(api, headers)
+    response = await post_file(api, headers, project["id"], schema, filename="filing.xsd")
+
+    assert response.status_code == 422, response.text
+    assert response.json()["type"].endswith("/unsupported-media-type")

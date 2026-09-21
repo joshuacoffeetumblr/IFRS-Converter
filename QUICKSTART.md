@@ -112,7 +112,7 @@ uploaded anywhere.
 
 ```bash
 cd backend
-make -C .. validate f=손익계산서.xlsx    # or .csv, or .pdf
+make -C .. validate f=손익계산서.xlsx    # or .csv, .pdf, .xbrl
 ```
 
 It reports whether the document's own subtotals reproduce, which captions the

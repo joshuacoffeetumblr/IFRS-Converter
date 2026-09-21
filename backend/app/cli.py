@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import datetime as dt
 import sys
 from collections.abc import Callable, Coroutine
 from pathlib import Path
@@ -99,6 +100,24 @@ async def _validate(argv: list[str]) -> int:
         help="which period column to read; 0 is the first, normally the current one",
     )
     parser.add_argument(
+        "--basis",
+        choices=["CONSOLIDATED", "SEPARATE"],
+        default="CONSOLIDATED",
+        help="XBRL only: a filing carries both, so which one to read has to be said",
+    )
+    parser.add_argument(
+        "--from",
+        dest="period_start",
+        type=dt.date.fromisoformat,
+        help="XBRL only: reporting period start, e.g. 2026-01-01",
+    )
+    parser.add_argument(
+        "--to",
+        dest="period_end",
+        type=dt.date.fromisoformat,
+        help="XBRL only: reporting period end, e.g. 2026-06-30",
+    )
+    parser.add_argument(
         "--ai",
         action="store_true",
         help=(
@@ -122,6 +141,9 @@ async def _validate(argv: list[str]) -> int:
             amount_column=args.amount_column,
             note_column=args.note_column,
             period_index=args.period,
+            basis=args.basis,
+            period_start=args.period_start,
+            period_end=args.period_end,
         ),
         use_ai=args.ai,
     )

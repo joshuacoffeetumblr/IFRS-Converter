@@ -70,6 +70,7 @@ class UploadSettings(BaseSettings):
         "application/vnd.ms-excel",
         "text/csv",
         "application/pdf",
+        "application/xbrl+xml",
     )
     #: Uploaded statements are deleted this many days after upload (spec §32).
     retention_days: int = 30

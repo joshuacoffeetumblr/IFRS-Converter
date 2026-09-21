@@ -13,7 +13,7 @@ audit trail, how and why operating profit changes.
 ## Status: the MVP flow runs end to end
 
 Phases 1–9 are complete: repository and tooling, the database schema,
-XLSX + CSV + PDF extraction with cell-level provenance and reconciliation
+XBRL + XLSX + CSV + PDF extraction with line-level provenance and reconciliation
 against the source's own subtotals, account normalization against a catalog of 34 canonical
 accounts and 198 synonyms, the IFRS 18 classification engine, statement reconstruction behind a
 reconciliation gate, impact analysis, and Excel export.
@@ -66,13 +66,32 @@ receivables with them. Left aggregated, the change would have read as zero.
 > routed to human review**. See
 > [`docs/07-ifrs18-source-verification.md`](docs/07-ifrs18-source-verification.md).
 
-All three adapters share one extraction pipeline
+The three grid adapters share one extraction pipeline
 (`app/adapters/ingest/grid.py`), so the format is transport only — a test
 asserts XLSX, CSV and PDF produce identical figures, identical coverage and the
 same verdict from the same statement.
 
 A PDF with no text layer is **refused**, not OCR'd: OCR misreads a digit
 silently, which is the one failure this product cannot have.
+
+**XBRL does not go through that pipeline, because a filing is not a grid.**
+Every grid reader spends its effort guessing: which column holds the figures,
+which row is a subtotal, whether an unsigned number is a deduction, what unit
+the page is in. Each of those guesses has been a defect at least once. An XBRL
+instance states all of it — the concept says whether a line is a subtotal and
+whether it is a deduction, the context says which period and whether it is
+consolidated, and a concept means the same thing in a Korean filing and an
+English one. So `app/adapters/ingest/xbrl.py` reads the taxonomy directly and
+guesses at nothing.
+
+It also reads the notes. Where a filing breaks a caption down — 금융수익 into
+interest, FX and derivative gains — the components replace the caption, but
+**only where they add up to it exactly**. A breakdown that does not reconcile is
+not one we have understood, and those are the lines IFRS 18 turns on: ¶49-50,
+B65 and B72 each classify a different part of 금융수익, so an approximate split
+would be worse than none. Which statement is read comes from the project, since
+a filing carries every basis and every period at once; a period it does not
+report is an error naming the ones it does, never the nearest match.
 
 > **Validated against a real filing on 2026-09-20** — Samsung Electronics'
 > 2026 half-year DART XBRL. All five §17 reconciliation checks agree to the
@@ -81,6 +100,11 @@ silently, which is the one failure this product cannot have.
 > decomposition, which is what IFRS 18 exists to look inside. Three defects
 > were found getting there, all one root cause: every caption table in the
 > ingest layer was Korean-only. See `docs/05-mvp-scope.md` §6.0.
+>
+> **Those four captions are now read from the filing itself** (2026-09-21).
+> Reading the XBRL instance directly takes the same statement from 9 detail
+> lines to 18, all four note breakdowns reconciling to the won, with no person
+> transcribing anything. See `docs/05-mvp-scope.md` §6.1.
 
 > **Test fixtures are synthetic.** They imitate the shape of a K-IFRS
 > 손익계산서 but are not drawn from a real filing, so they validate the parser,
@@ -92,7 +116,8 @@ silently, which is the one failure this product cannot have.
 > that consumes one is built and waiting:
 >
 > ```bash
-> make validate f=손익계산서.xlsx      # or .csv, or .pdf
+> make validate f=손익계산서.xlsx      # or .csv, .pdf, .xbrl
+> make validate f=filing.xbrl args="--from 2026-01-01 --to 2026-06-30"
 > ```
 >
 > No database, no network, so it runs on a file that may not be uploaded
@@ -180,6 +205,12 @@ Verified on 2026-09-19 against a live PostgreSQL 16 and both servers running:
 - An upload's format is decided by its leading bytes, its size is enforced
   mid-stream, a workbook that expands like a zip bomb is refused, and a
   rejected upload leaves nothing on disk
+- An XBRL filing's taxonomy concepts are matched by **namespace**, not by the
+  prefix the filer happened to declare, and a note breakdown is used only where
+  it reconciles to the caption it explains
+- Every failure reaches the client as a problem document, including an
+  unreachable database — which is a `503` naming the dependency rather than a
+  bare `Internal Server Error` that reads as a rejected password
 - A failed extraction is recorded rather than rolled back, so a project whose
   statement could not be read never looks untouched
 - A note column printed as bare numbers — how filings actually print it — is

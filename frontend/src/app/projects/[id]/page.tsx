@@ -1,4 +1,10 @@
-import { ApiError, api, type ExtractionReport, type Line } from "@/lib/api";
+import {
+  ApiError,
+  api,
+  sourceReference,
+  type ExtractionReport,
+  type Line,
+} from "@/lib/api";
 import { Figure } from "@/components/Figure";
 import { StatusPill } from "@/components/StatusPill";
 import { ExtractionControls } from "./ExtractionControls";
@@ -45,7 +51,7 @@ export default async function ExtractionPage({
         <LineTable lines={lines} />
       ) : (
         <p className="mt-8 rounded-md border border-dashed border-border px-4 py-8 text-center text-sm text-muted">
-          아직 추출된 라인이 없습니다. 손익계산서 파일(XLSX 또는 CSV)을 업로드하고 추출을
+          아직 추출된 라인이 없습니다. 손익계산서 파일(XBRL·XLSX·CSV·PDF)을 업로드하고 추출을
           실행하세요.
         </p>
       )}
@@ -155,9 +161,8 @@ function LineTable({ lines }: { lines: Line[] }) {
               </td>
               <td className="py-2 text-right text-xs text-muted">{line.raw_value}</td>
               <td className="py-2 text-right text-xs text-muted">
-                {/* Spec §18: every figure traces back to the cell it came from. */}
-                {line.source_locator.sheet ? `${line.source_locator.sheet}!` : ""}
-                {line.source_locator.cell ?? "—"}
+                {/* Spec §18: every figure traces back to where it was read. */}
+                {sourceReference(line.source_locator)}
               </td>
             </tr>
           ))}

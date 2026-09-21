@@ -14,6 +14,7 @@ it, and saying so is the only honest outcome (spec §17).
 
 from __future__ import annotations
 
+import dataclasses
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,9 +23,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.ingest import csv as csv_ingest
 from app.adapters.ingest import pdf as pdf_ingest
+from app.adapters.ingest import xbrl as xbrl_ingest
 from app.adapters.ingest import xlsx as xlsx_ingest
 from app.adapters.ingest.grid import ExtractOptions, StatementNotFoundError
-from app.adapters.storage.files import CSV_MIME, PDF_MIME, XLS_MIME, XLSX_MIME
+from app.adapters.storage.files import CSV_MIME, PDF_MIME, XBRL_MIME, XLS_MIME, XLSX_MIME
 from app.domain.enums import (
     ActorType,
     AuditAction,
@@ -74,6 +76,8 @@ def read_statement(path: Path, mime_type: str, options: ExtractOptions) -> Extra
         return csv_ingest.read_income_statement(path, options=options)
     if mime_type == PDF_MIME:
         return pdf_ingest.read_income_statement(path, options=options)
+    if mime_type == XBRL_MIME:
+        return xbrl_ingest.read_income_statement(path, options=options)
     raise ExtractionError(
         f"{mime_type} cannot be extracted.",
         code="unsupported-for-extraction",
@@ -91,6 +95,15 @@ async def extract(
 ) -> ExtractionResult:
     """Read the uploaded file and store what it contains."""
     options = options or ExtractOptions()
+    # An XBRL filing carries every basis and every period at once, so which
+    # statement is being read cannot be found in the file — it is what this
+    # project says it is. The other formats ignore these.
+    options = dataclasses.replace(
+        options,
+        basis=options.basis or project.basis,
+        period_start=options.period_start or project.period_start,
+        period_end=options.period_end or project.period_end,
+    )
     path = storage_dir / upload.storage_key
     if not path.exists():  # pragma: no cover - storage inconsistency
         raise ExtractionError("The uploaded file is no longer available.", code="file-missing")

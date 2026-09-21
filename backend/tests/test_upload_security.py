@@ -13,6 +13,7 @@ from openpyxl import Workbook
 from app.adapters.storage.files import (
     CSV_MIME,
     PDF_MIME,
+    XBRL_MIME,
     XLSX_MIME,
     StoredFile,
     UploadRejectedError,
@@ -238,3 +239,35 @@ async def test_identical_content_produces_the_same_digest(tmp_path: Path) -> Non
 
     assert first.sha256 == second.sha256
     assert first.storage_key != second.storage_key
+
+
+# ---------------------------------------------------------------------------
+# XBRL, which is XML — and so is everything shipped beside it
+# ---------------------------------------------------------------------------
+
+XBRL_HEAD = b'<?xml version="1.0" encoding="UTF-8"?><xbrli:xbrl'
+
+
+def test_an_xbrl_instance_is_recognised() -> None:
+    assert sniff_mime_type(XBRL_HEAD, filename="entity_2026-06-30.xbrl") == XBRL_MIME
+
+
+def test_a_taxonomy_schema_is_not_a_filing() -> None:
+    """A DART filing is a set of files and only one of them holds figures.
+
+    The schema and the linkbases are XML too. Accepting them here would put an
+    empty statement in front of a reviewer instead of saying which file to send.
+    """
+    with pytest.raises(UploadRejectedError):
+        sniff_mime_type(XBRL_HEAD, filename="entity_2026-06-30.xsd")
+
+
+def test_xml_content_without_an_xml_extension_is_refused() -> None:
+    with pytest.raises(UploadRejectedError):
+        sniff_mime_type(XBRL_HEAD, filename="filing.pdf")
+
+
+def test_an_xbrl_extension_without_xml_content_is_refused() -> None:
+    """The extension alone is the client's word for it."""
+    with pytest.raises(UploadRejectedError):
+        sniff_mime_type(b"MZ\x90\x00 not xml at all", filename="filing.xbrl")

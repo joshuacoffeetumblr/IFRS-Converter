@@ -52,6 +52,11 @@ class SourceLocatorResponse(ApiModel):
     column: str | None = None
     cell: str | None = None
     page: int | None = None
+    #: An XBRL filing has no grid, so a cell reference would mean nothing. The
+    #: taxonomy concept and the context are what an auditor can look the figure
+    #: up by, and they identify it in any language.
+    concept: str | None = None
+    context: str | None = None
 
 
 class LineResponse(ApiModel):

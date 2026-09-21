@@ -51,3 +51,8 @@ frontend/test-results/
 
 # Local database data
 pgdata/
+
+# `next dev` writes these agent-instruction files into frontend/ on every run.
+# They are tool output, not source, so they are ignored rather than committed.
+frontend/AGENTS.md
+frontend/CLAUDE.md

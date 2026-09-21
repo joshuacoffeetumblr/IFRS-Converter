@@ -12,6 +12,7 @@ preserving enough positional information for provenance (spec §18).
 
 from __future__ import annotations
 
+import datetime as dt
 import re
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -202,6 +203,17 @@ class ExtractOptions:
     #: Which period column to read when several are present. 0 is the first,
     #: normally the current period.
     period_index: int = 0
+
+    # --- Only an XBRL filing uses these -------------------------------------
+    #: `CONSOLIDATED` or `SEPARATE`. A DART filing carries both, tagged on the
+    #: same concepts, so which one is being read has to be said rather than
+    #: found: there is no "first" one.
+    basis: str | None = None
+    #: The reporting period to read. A filing carries the half-year, the
+    #: quarter and the prior year's equivalents; picking by position would
+    #: quietly produce a different statement from the one that was asked for.
+    period_start: dt.date | None = None
+    period_end: dt.date | None = None
 
 
 # ---------------------------------------------------------------------------

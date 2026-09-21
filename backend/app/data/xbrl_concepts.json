@@ -1,0 +1,56 @@
+{
+  "version": "2026.09.1",
+  "note": "IFRS and DART taxonomy concepts that appear on a Korean income statement, and what each one is. Data, not code, so an accountant can review and diff it. A concept is a *language-independent identifier*: mapping on it removes caption matching entirely, which is where every ingest defect so far has come from. 'nature' gives the sign — an XBRL filing reports a deduction as a positive figure and leaves the sign to the taxonomy. 'subtotal' names a figure the filing itself computed; those are reconciliation targets, never inputs (spec §17). 'order' is the order a Korean income statement prints these in.",
+  "concepts": [
+    { "concept": "ifrs-full:Revenue", "order": 10, "label_ko": "수익(매출액)", "label_en": "Revenue", "nature": "INCOME", "account": "REVENUE" },
+    { "concept": "ifrs-full:RevenueFromSaleOfGoods", "order": 11, "label_ko": "제품매출액", "label_en": "Revenue from sale of goods", "nature": "INCOME", "account": "REVENUE" },
+    { "concept": "ifrs-full:RevenueFromRenderingOfServices", "order": 12, "label_ko": "용역매출액", "label_en": "Revenue from rendering of services", "nature": "INCOME", "account": "REVENUE" },
+
+    { "concept": "ifrs-full:CostOfSales", "order": 20, "label_ko": "매출원가", "label_en": "Cost of sales", "nature": "EXPENSE", "account": "COST_OF_SALES" },
+
+    { "concept": "ifrs-full:GrossProfit", "order": 30, "label_ko": "매출총이익", "label_en": "Gross profit", "nature": "INCOME", "subtotal": "GROSS_PROFIT" },
+
+    { "concept": "dart:TotalSellingGeneralAdministrativeExpenses", "order": 40, "label_ko": "판매비와관리비", "label_en": "Selling, general and administrative expenses", "nature": "EXPENSE", "account": "SELLING_AND_ADMIN_EXPENSES" },
+    { "concept": "ifrs-full:SellingGeneralAndAdministrativeExpense", "order": 41, "label_ko": "판매비와관리비", "label_en": "Selling, general and administrative expense", "nature": "EXPENSE", "account": "SELLING_AND_ADMIN_EXPENSES" },
+
+    { "concept": "dart:OperatingIncomeLoss", "order": 50, "label_ko": "영업이익", "label_en": "Operating income (loss)", "nature": "INCOME", "subtotal": "REPORTED_OPERATING_PROFIT" },
+    { "concept": "ifrs-full:ProfitLossFromOperatingActivities", "order": 51, "label_ko": "영업이익", "label_en": "Profit (loss) from operating activities", "nature": "INCOME", "subtotal": "REPORTED_OPERATING_PROFIT" },
+
+    { "concept": "dart:OtherGains", "order": 60, "label_ko": "기타수익", "label_en": "Other gains", "nature": "INCOME", "account": "OTHER_INCOME" },
+    { "concept": "ifrs-full:OtherIncome", "order": 61, "label_ko": "기타수익", "label_en": "Other income", "nature": "INCOME", "account": "OTHER_INCOME" },
+    { "concept": "dart:OtherLosses", "order": 62, "label_ko": "기타비용", "label_en": "Other losses", "nature": "EXPENSE", "account": "OTHER_EXPENSES" },
+    { "concept": "ifrs-full:OtherExpenseByNature", "order": 63, "label_ko": "기타비용", "label_en": "Other expenses", "nature": "EXPENSE", "account": "OTHER_EXPENSES" },
+
+    { "concept": "ifrs-full:ShareOfProfitLossOfAssociatesAndJointVenturesAccountedForUsingEquityMethod", "order": 70, "label_ko": "지분법이익", "label_en": "Share of profit (loss) of associates and joint ventures accounted for using equity method", "nature": "INCOME", "account": "SHARE_OF_PROFIT_OF_ASSOCIATES" },
+
+    { "concept": "ifrs-full:FinanceIncome", "order": 80, "label_ko": "금융수익", "label_en": "Finance income", "nature": "INCOME", "account": "FINANCE_INCOME" },
+    { "concept": "ifrs-full:FinanceCosts", "order": 81, "label_ko": "금융비용", "label_en": "Finance costs", "nature": "EXPENSE", "account": "FINANCE_COSTS" },
+
+    { "concept": "ifrs-full:ProfitLossBeforeTax", "order": 90, "label_ko": "법인세비용차감전순이익", "label_en": "Profit (loss) before tax", "nature": "INCOME", "subtotal": "PROFIT_BEFORE_TAX" },
+
+    { "concept": "ifrs-full:IncomeTaxExpenseContinuingOperations", "order": 100, "label_ko": "법인세비용", "label_en": "Income tax expense", "nature": "EXPENSE", "account": "INCOME_TAX_EXPENSE" },
+
+    { "concept": "ifrs-full:ProfitLossFromContinuingOperations", "order": 108, "label_ko": "계속영업이익", "label_en": "Profit (loss) from continuing operations", "nature": "INCOME", "subtotal": "OTHER" },
+    { "concept": "ifrs-full:ProfitLossFromDiscontinuedOperations", "order": 109, "label_ko": "중단영업손익", "label_en": "Profit (loss) from discontinued operations", "nature": "INCOME", "account": "DISCONTINUED_OPERATIONS_RESULT" },
+
+    { "concept": "ifrs-full:ProfitLoss", "order": 110, "label_ko": "당기순이익", "label_en": "Profit (loss)", "nature": "INCOME", "subtotal": "PROFIT_FOR_THE_PERIOD" }
+  ],
+  "note_concepts": [
+    { "concept": "dart:DividendIncomeNonOperating", "order": 200, "label_ko": "배당금수익", "label_en": "Dividend income", "nature": "INCOME", "account": "DIVIDEND_INCOME", "parent": "dart:OtherGains" },
+    { "concept": "dart:LentIncome", "order": 201, "label_ko": "임대료수익", "label_en": "Rental income", "nature": "INCOME", "account": "RENTAL_INCOME", "parent": "dart:OtherGains" },
+    { "concept": "ifrs-full:GainsOnDisposalsOfPropertyPlantAndEquipment", "order": 202, "label_ko": "유형자산처분이익", "label_en": "Gains on disposals of property, plant and equipment", "nature": "INCOME", "account": "GAIN_ON_DISPOSAL_OF_PPE", "parent": "dart:OtherGains" },
+    { "concept": "dart:MiscellaneousIncome", "order": 203, "label_ko": "잡이익", "label_en": "Miscellaneous income", "nature": "INCOME", "account": "MISCELLANEOUS_INCOME", "parent": "dart:OtherGains" },
+
+    { "concept": "ifrs-full:LossesOnDisposalsOfPropertyPlantAndEquipment", "order": 210, "label_ko": "유형자산처분손실", "label_en": "Losses on disposals of property, plant and equipment", "nature": "EXPENSE", "account": "LOSS_ON_DISPOSAL_OF_PPE", "parent": "dart:OtherLosses" },
+    { "concept": "dart:Donations", "order": 211, "label_ko": "기부금", "label_en": "Donations", "nature": "EXPENSE", "account": "DONATIONS", "parent": "dart:OtherLosses" },
+    { "concept": "dart:MiscellaneousLosses", "order": 212, "label_ko": "잡손실", "label_en": "Miscellaneous losses", "nature": "EXPENSE", "account": "MISCELLANEOUS_LOSS", "parent": "dart:OtherLosses" },
+
+    { "concept": "dart:InterestIncomeFinanceIncome", "order": 220, "label_ko": "이자수익", "label_en": "Interest income", "nature": "INCOME", "account": "INTEREST_INCOME", "parent": "ifrs-full:FinanceIncome" },
+    { "concept": "ifrs-full:ForeignExchangeGain", "order": 221, "label_ko": "외환차익", "label_en": "Foreign exchange gain", "nature": "INCOME", "account": "FX_GAIN", "parent": "ifrs-full:FinanceIncome" },
+    { "concept": "dart:GainFromDerivatives", "order": 222, "label_ko": "파생상품이익", "label_en": "Gain from derivatives", "nature": "INCOME", "account": "DERIVATIVE_GAIN", "parent": "ifrs-full:FinanceIncome" },
+
+    { "concept": "dart:InterestExpenseFinanceExpense", "order": 230, "label_ko": "이자비용", "label_en": "Interest expense", "nature": "EXPENSE", "account": "INTEREST_EXPENSE", "parent": "ifrs-full:FinanceCosts" },
+    { "concept": "ifrs-full:ForeignExchangeLoss", "order": 231, "label_ko": "외환차손", "label_en": "Foreign exchange loss", "nature": "EXPENSE", "account": "FX_LOSS", "parent": "ifrs-full:FinanceCosts" },
+    { "concept": "dart:LossesFromDerivatives", "order": 232, "label_ko": "파생상품손실", "label_en": "Losses from derivatives", "nature": "EXPENSE", "account": "DERIVATIVE_LOSS", "parent": "ifrs-full:FinanceCosts" }
+  ]
+}

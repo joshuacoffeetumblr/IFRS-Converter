@@ -307,6 +307,10 @@ class SignNormalization(StrEnum):
     #: testing one structural hypothesis against the statement's own subtotals.
     #: Only ever applied when that test *passes*, never on assumption.
     INFERRED_FROM_SUBTOTAL = "INFERRED_FROM_SUBTOTAL"
+    #: An XBRL filing reports a deduction as a positive figure and leaves the
+    #: sign to the taxonomy — the calculation weight, or the concept's own
+    #: balance. Nothing is guessed: the concept says which it is.
+    TAXONOMY_SIGNED = "TAXONOMY_SIGNED"
 
 
 class DecompositionStatus(StrEnum):

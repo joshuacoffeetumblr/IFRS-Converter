@@ -77,13 +77,13 @@ Multi-currency groups are out of scope.
 | 15 | Excel export including the audit trail | §8 |
 | 16 | Full audit trail on every classification and override | §8 |
 | 17 | Disclaimer surfaced in UI **and** in every export | §24 |
+| 18 | Read a DART XBRL instance directly, including the note breakdowns | §3 |
 
 ### Out of scope for MVP (and stated as limitations in-product)
 
 | Excluded | Why | Spec ref |
 |---|---|---|
 | Scanned/OCR PDFs | Separate problem; high silent-error risk | §33 |
-| DART / XBRL ingestion | §3 lists as future; §33 excludes | §3, §33 |
 | Banks, insurers, securities firms | Lowest rule confidence; IFRS 18.73 prohibits a subtotal we present, so such projects are **blocked at finalization** (Q3) | §33 |
 | MPM (management-defined performance measure) disclosure | Prominent IFRS 18 requirement, deliberately deferred — see Q7 | — |
 | OCI restructuring, aggregation/disaggregation requirements | P&L only — see Q7 | — |
@@ -306,3 +306,41 @@ magnitude above the largest line in any Korean income statement.
 4. **Provide one real anonymised Korean income statement** as the fixture. Every
    phase's exit criterion above is defined against a real statement; a synthetic
    one would validate the code but not the dictionary or the rule set.
+
+### 6.1 XBRL was moved into scope — 2026-09-21
+
+§3 listed XBRL as future work and §33 excluded it. Validating against the
+Samsung filing (6.0) inverted the argument: XBRL turned out to be the *easiest*
+format to read correctly and the only one that answers the question the product
+exists to ask.
+
+Every other reader spends its effort guessing — which column holds the figures,
+which row is a subtotal, whether an unsigned number is a deduction, what unit
+the page is in. Each of those guesses has been a defect at least once, and 6.0's
+three defects were all the same guess made in three places. An XBRL instance
+*states* all of it:
+
+| What the other readers infer | What the filing declares |
+|---|---|
+| which caption is a subtotal | the concept, via the taxonomy |
+| whether a figure is a deduction | the concept's nature |
+| which period a column is | the context's period |
+| consolidated or separate | the context's dimension |
+| what the caption means | the concept id, in any language |
+
+And it closes 6.0's open item without a person doing anything. The four
+aggregates that correctly stayed UNCLASSIFIED — 기타수익, 기타비용, 금융수익,
+금융비용 — are broken down in the filing's own notes, tagged under the same
+period and basis. The reader substitutes the components for the caption **only
+where they add up to it exactly**; a breakdown that does not reconcile is not
+one we have understood, and an approximate split of 금융수익 would be worse than
+none, because ¶49-50, B65 and B72 each classify a different part of it.
+
+On the Samsung filing all four reconcile to the won, and the statement goes from
+9 detail lines to 18. What was one UNCLASSIFIED aggregate is now 이자수익,
+외환차익 and 파생상품이익 — three lines, three different rules, each asking the
+reviewer a question that has an answer.
+
+The narrowness is deliberate: a concept this product does not know is reported
+rather than silently dropped, because a filing we only partly read is exactly
+what the §17 reconciliation exists to catch.
