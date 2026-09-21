@@ -271,3 +271,80 @@ def test_an_xbrl_extension_without_xml_content_is_refused() -> None:
     """The extension alone is the client's word for it."""
     with pytest.raises(UploadRejectedError):
         sniff_mime_type(b"MZ\x90\x00 not xml at all", filename="filing.xbrl")
+
+
+# ---------------------------------------------------------------------------
+# A ZIP that is not a workbook
+# ---------------------------------------------------------------------------
+
+
+def zip_of(names: dict[str, bytes]) -> bytes:
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for name, payload in names.items():
+            archive.writestr(name, payload)
+    return buffer.getvalue()
+
+
+async def test_a_dart_filing_bundle_names_the_file_to_upload(tmp_path: Path) -> None:
+    """A DART filing is downloaded as a ZIP, so this is the likeliest mistake.
+
+    A ZIP and a workbook begin with the same four bytes, so sniffing cannot
+    tell them apart. Before this, the bundle was read as a workbook and died
+    inside the XLSX reader on a missing archive member — a stack trace, for
+    someone who had simply uploaded the file the way it arrived.
+    """
+    bundle = zip_of(
+        {
+            "entity00126380_2026-06-30.xbrl": b"<?xml version='1.0'?><x/>",
+            "entity00126380_2026-06-30.xsd": b"<?xml version='1.0'?><x/>",
+            "entity00126380_2026-06-30_pre.xml": b"<?xml version='1.0'?><x/>",
+        }
+    )
+
+    with pytest.raises(UploadRejectedError) as caught:
+        await store(tmp_path, bundle, filename="filing.zip")
+
+    assert "entity00126380_2026-06-30.xbrl" in str(caught.value)
+    assert "upload that file instead" in str(caught.value)
+
+
+async def test_an_archive_with_nothing_recognisable_says_to_extract_it(
+    tmp_path: Path,
+) -> None:
+    archive = zip_of({"readme.txt": b"hello", "notes/thing.bin": b"\x00\x01"})
+
+    with pytest.raises(UploadRejectedError) as caught:
+        await store(tmp_path, archive, filename="stuff.zip")
+
+    assert "Extract it" in str(caught.value)
+
+
+async def test_a_mac_resource_fork_is_not_offered_as_the_file(tmp_path: Path) -> None:
+    """macOS adds `__MACOSX/` shadows of every entry when compressing."""
+    archive = zip_of(
+        {
+            "__MACOSX/._statement.xlsx": b"resource fork",
+            "statement.xlsx": b"not really a workbook",
+        }
+    )
+
+    with pytest.raises(UploadRejectedError) as caught:
+        await store(tmp_path, archive, filename="bundle.zip")
+
+    assert "__MACOSX" not in str(caught.value)
+    assert "statement.xlsx" in str(caught.value)
+
+
+async def test_a_real_workbook_is_still_accepted(tmp_path: Path) -> None:
+    """The guard must not reject the format it is guarding."""
+    buffer = io.BytesIO()
+    book = Workbook()
+    sheet = book.active
+    assert sheet is not None
+    sheet["A1"] = "매출액"
+    book.save(buffer)
+
+    stored = await store(tmp_path, buffer.getvalue(), filename="손익계산서.xlsx")
+
+    assert stored.mime_type == XLSX_MIME

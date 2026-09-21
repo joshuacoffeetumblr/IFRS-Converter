@@ -8,11 +8,13 @@ are shared with every other ingest format and live in ``grid.py``.
 
 from __future__ import annotations
 
+import zipfile
 from pathlib import Path
 
 from openpyxl import load_workbook
 from openpyxl.cell.cell import Cell, MergedCell
 from openpyxl.utils import get_column_letter
+from openpyxl.utils.exceptions import InvalidFileException
 from openpyxl.workbook.workbook import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
@@ -108,7 +110,20 @@ def read_income_statement(
 
     # `data_only` returns cached formula results rather than formula text, so a
     # statement built with formulas still yields its figures.
-    workbook = load_workbook(path, data_only=True, read_only=False)
+    try:
+        workbook = load_workbook(path, data_only=True, read_only=False)
+    except (KeyError, zipfile.BadZipFile, InvalidFileException) as exc:
+        # A workbook is a ZIP, and so is a plain archive — they share their
+        # first four bytes, so the format is identified as a workbook from the
+        # outside and only openpyxl can tell otherwise. It signals that three
+        # different ways depending on what it notices first, and one of them was
+        # a bare `KeyError` naming an OOXML internal file: a stack trace, for
+        # someone who had uploaded a DART filing bundle as it was downloaded.
+        raise StatementNotFoundError(
+            "This file is not a workbook. If it is a ZIP archive — a DART "
+            "filing is downloaded as one — extract it and upload the statement "
+            "file inside, such as the one ending in .xbrl."
+        ) from exc
     try:
         sheet = find_sheet(workbook, options.sheet)
         return extract_statement(worksheet_to_grid(sheet, path.name), options)

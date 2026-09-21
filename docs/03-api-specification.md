@@ -116,6 +116,12 @@ anything is recorded:
   rather than measured once it is already in memory.
 - A workbook's uncompressed size and compression ratio are checked, because a
   few hundred kilobytes of XLSX can expand to gigabytes.
+- **A ZIP that is not a workbook is refused by name.** A workbook *is* a ZIP, so
+  the two share their leading bytes and only the contents tell them apart: an
+  OOXML package carries `[Content_Types].xml` and nothing else does. A DART
+  filing is downloaded as a bundle, so this is the likeliest wrong file, and the
+  rejection names the entry inside to upload instead. The size and ratio checks
+  run first, so a hostile archive is still reported as hostile.
 - SHA-256 is computed while writing. **An identical file already attached to
   the project returns the existing record** rather than creating a second one a
   later extraction would have to choose between.

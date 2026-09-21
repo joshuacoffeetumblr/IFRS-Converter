@@ -42,10 +42,24 @@ export function ExtractionControls({
         projectId={projectId}
         disabled={finalized}
       >
+        {/*
+          No `accept` filter, deliberately.
+
+          `.xbrl` has no registered type on any operating system, and a browser
+          handed an extension it does not recognise does not fall back to
+          showing everything — Safari and the mobile pickers grey the file out
+          instead. The file the person came to upload becomes the one file they
+          cannot choose, with nothing on screen to say why.
+
+          Nothing is lost by dropping it. The filter was never what decides the
+          format: the API sniffs the leading bytes and ignores the filename
+          entirely (spec §31), and it refuses anything else by name. A filter
+          that silently hides the right file is worse than no filter, and the
+          accepted formats are written above where they can be read.
+        */}
         <input
           type="file"
           name="file"
-          accept=".xbrl,.xlsx,.xls,.csv,.pdf"
           required
           className="block w-full text-xs text-muted file:mr-3 file:rounded-md file:border file:border-border file:bg-canvas file:px-3 file:py-1.5 file:text-xs file:text-ink"
         />

@@ -135,11 +135,31 @@ def safe_display_name(filename: str | None) -> str:
     return candidate[:255] or "upload"
 
 
+#: Every OOXML package has one, and nothing else does. It is what separates a
+#: workbook from a plain ZIP that merely shares its magic number.
+_OOXML_MANIFEST = "[Content_Types].xml"
+
+#: Extensions worth naming back to someone who uploaded an archive, in the
+#: order they should be offered. A DART filing is downloaded as a ZIP holding
+#: the instance and its linkbases, and the instance is the one to upload.
+_INNER_CANDIDATES = (".xbrl", ".xlsx", ".xls", ".csv", ".pdf")
+
+
+def _suggest_inner_file(names: list[str]) -> str:
+    """Name the file inside the archive that should have been uploaded."""
+    for suffix in _INNER_CANDIDATES:
+        for name in names:
+            if name.lower().endswith(suffix) and not name.startswith("__MACOSX/"):
+                return f" It contains {Path(name).name} — upload that file instead."
+    return " Extract it and upload the statement file on its own."
+
+
 def _assert_archive_is_sane(path: Path, compressed_size: int) -> None:
-    """Refuse an archive that expands far beyond its stored size."""
+    """Refuse an archive that is not a workbook, or expands far beyond its size."""
     try:
         with zipfile.ZipFile(path) as archive:
             uncompressed = sum(entry.file_size for entry in archive.infolist())
+            names = archive.namelist()
     except zipfile.BadZipFile as exc:
         raise UploadRejectedError(
             "The workbook is corrupt and could not be opened.", code="corrupt-file"
@@ -154,6 +174,22 @@ def _assert_archive_is_sane(path: Path, compressed_size: int) -> None:
         raise UploadRejectedError(
             "The workbook's compression ratio is implausible for a spreadsheet.",
             code="archive-too-large",
+        )
+
+    # Last, because the checks above are the security ones and a hostile
+    # archive should be reported as hostile rather than as a wrong file type.
+    #
+    # A ZIP and a workbook begin with the same four bytes, so sniffing the
+    # leading bytes cannot tell them apart — only the contents can, and every
+    # OOXML package carries this manifest while nothing else does. Without the
+    # check, a DART filing bundle (which is how a filing is downloaded) was
+    # read as a workbook and died deep inside the XLSX reader on a missing
+    # archive member, giving a stack trace to someone who had merely uploaded
+    # the file the way it arrived.
+    if _OOXML_MANIFEST not in names:
+        raise UploadRejectedError(
+            "This is a ZIP archive, not a spreadsheet." + _suggest_inner_file(names),
+            code="unsupported-media-type",
         )
 
 

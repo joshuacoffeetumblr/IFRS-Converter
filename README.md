@@ -205,6 +205,9 @@ Verified on 2026-09-19 against a live PostgreSQL 16 and both servers running:
 - An upload's format is decided by its leading bytes, its size is enforced
   mid-stream, a workbook that expands like a zip bomb is refused, and a
   rejected upload leaves nothing on disk
+- A ZIP that is not a workbook — a DART filing bundle, most likely — is refused
+  with the name of the file inside to upload instead, rather than dying inside
+  the workbook reader on a missing archive member
 - An XBRL filing's taxonomy concepts are matched by **namespace**, not by the
   prefix the filer happened to declare, and a note breakdown is used only where
   it reconciles to the caption it explains

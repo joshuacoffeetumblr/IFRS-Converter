@@ -232,3 +232,31 @@ def test_an_unprinted_unit_is_reported_as_unknown_not_as_won(tmp_path: Path) -> 
     workbook.save(path)
 
     assert read_income_statement(path).scale is None
+
+
+def test_a_zip_that_is_not_a_workbook_says_what_to_upload(tmp_path: Path) -> None:
+    """A workbook is a ZIP, so a plain ZIP reaches this reader looking like one.
+
+    openpyxl reports it by failing to find an OOXML member, which used to leave
+    the caller with a bare `KeyError` naming an internal file — the least
+    actionable possible answer for the commonest mistake, uploading a DART
+    filing bundle exactly as it was downloaded.
+    """
+    import zipfile
+
+    archive = tmp_path / "filing.zip"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("entity00126380_2026-06-30.xbrl", "<?xml version='1.0'?><x/>")
+
+    with pytest.raises(StatementNotFoundError) as caught:
+        read_income_statement(archive)
+
+    assert ".xbrl" in str(caught.value)
+
+
+def test_a_file_that_is_not_an_archive_at_all_is_reported_too(tmp_path: Path) -> None:
+    path = tmp_path / "statement.xlsx"
+    path.write_bytes(b"this is plain text, not a workbook")
+
+    with pytest.raises(StatementNotFoundError):
+        read_income_statement(path)
